@@ -1,0 +1,22 @@
+name: regime-portfolio
+channels:
+  - conda-forge
+dependencies:
+  - python=3.12
+  - ipykernel<7.0
+  - yfinance
+  - pandas 
+  - requests
+  - numpy
+  - matplotlib
+  - joblib
+  - scipy
+  - scikit-learn
+  - arch-py
+  - numba
+  - statsmodels
+  - tensorflow
+  - tensorflow-probability
+  - tf-keras
+  - alpaca-py
+  - pyyaml

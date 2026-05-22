@@ -1,0 +1,41 @@
+tickers: ["AAPL","MSFT","JPM", "AMZN", "NVDA", "GOOGL","NFLX", "BRK-B","WMT","BAC", "PG", "JNJ", "NEE", "XOM", "FCX", "NEM", "SPG", "O", "PLUG", "RIG","URBN", "MSTR", "ASML", "TM","NVO"]
+index_tickers: ['^GSPC','SPY', '^VIX']
+
+start_date: "2005-01-01"
+end_date: "2025-12-31"
+
+asset_bounds:
+  default_min: 0.0
+  default_max: 1.0
+  custom_max:
+    0.15: ["AAPL", "MSFT", "GOOGL", "AMZN", "JPM", "BRK-B", "JNJ", "PG", "WMT"]
+    0.08: ["ASML", "BAC", "NEE", "NFLX", "NVDA", "NVO", "TM", "XOM"]
+    0.05: ["MSTR", "PLUG", "RIG", "URBN"]
+    0.03: ["FCX", "NEM", "O", "SPG"]
+
+sector_constraints:
+  tech_growth:
+    tickers: ["AAPL", "MSFT", "GOOGL", "AMZN", "NVDA", "NFLX", "ASML"]
+    max_weight: 0.40
+  defensive:
+    tickers: ["JNJ", "PG", "WMT", "NEE"]
+    min_weight: 0.05
+    max_weight: 0.50
+  commodity:
+    tickers: ["FCX", "NEM", "XOM"]
+    max_weight: 0.20
+
+monte_carlo:
+  num_simulations: 100000
+  chunk_size: 100
+
+backtest:
+  initial_capital: 1000000
+  rebalance_period: 20
+  lookback_window: 252
+  max_turnover_per_period: 0.5
+  min_diff_to_rebalance: 0.005
+
+frictions:
+  slippage: 0.0010
+  transaction_cost: 0.0002

@@ -1,0 +1,17 @@
+ipykernel<7.0
+yfinance
+pandas
+requests
+numpy
+matplotlib
+joblib
+scipy
+scikit-learn
+arch
+numba
+statsmodels
+tensorflow
+tensorflow-probability
+tf-keras
+alpaca-py
+pyyaml
