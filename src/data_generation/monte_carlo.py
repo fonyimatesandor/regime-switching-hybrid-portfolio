@@ -13,13 +13,17 @@ from src.utils.hansen import HansenSkewedT
 
 
 class BaseMonteCarloSimulator(ABC):
+    def __init__(self):
+        self.is_fitted = False
+        
+    
     @abstractmethod
     def fit(self, asset_prices: pd.DataFrame, factors: pd.DataFrame):
         '''Fits the statistical model to the data. Stores parameters as internal state.'''
         pass
     
     @abstractmethod
-    def simulate(self, starting_prices: np.ndarray, starting_factors: np.ndarray, num_simulations: int, num_steps: int) -> tuple:
+    def simulate(self, starting_prices: np.ndarray, num_simulations: int, num_steps: int) -> tuple:
         '''
         Simulates future paths based on the fitted model.
         Returns: (simulated_asset_prices, simulated_simple_factors)
@@ -44,8 +48,11 @@ class BaseMonteCarloSimulator(ABC):
 class StaticNormalSimulator(BaseMonteCarloSimulator):
     def fit(self, asset_prices: pd.DataFrame, factors: pd.DataFrame):
         
-        asset_log_returns = self._get_price_log_returns(asset_prices.values)
-        factor_log_returns = self._get_factor_log_returns(factors.values[1:])
+        self.asset_prices = asset_prices
+        self.factors = factors
+        
+        asset_log_returns = self._get_price_log_returns(self.asset_prices.values)
+        factor_log_returns = self._get_factor_log_returns(self.factors.values[1:])
         
         self.n_assets = asset_log_returns.shape[1]
         self.n_factors = factor_log_returns.shape[1]
@@ -55,10 +62,10 @@ class StaticNormalSimulator(BaseMonteCarloSimulator):
         
         self.means = np.mean(joint_log_returns, axis=0)
         self.cov_matrix = np.cov(joint_log_returns, rowvar=False)
+        self.is_fitted = True
+        
        
-    def simulate(self, starting_prices: np.ndarray, starting_factors: np.ndarray, num_simulations: int, num_steps: int) -> tuple:
-        n_factors = starting_factors.shape[0]
-        n_assets = self.n_assets
+    def simulate(self, starting_prices: np.ndarray, num_simulations: int, num_steps: int) -> tuple:
         
         joint_sim_log_returns = np.random.multivariate_normal(self.means, self.cov_matrix, size=(num_simulations, num_steps - 1))
 
@@ -75,16 +82,19 @@ class StaticNormalSimulator(BaseMonteCarloSimulator):
    
    
 class StaticStudentTSimulator(BaseMonteCarloSimulator):
-    
     def __init__(self, maxiter = 1000, tol = 1e-8):
+        super().__init__()
         self.maxiter = maxiter
         self.tol = tol
     
     
     def fit(self, asset_prices: pd.DataFrame, factors: pd.DataFrame):
         
-        asset_log_returns = self._get_price_log_returns(asset_prices.values)
-        factor_log_returns = self._get_factor_log_returns(factors.values[1:])
+        self.asset_prices = asset_prices
+        self.factors = factors
+        
+        asset_log_returns = self._get_price_log_returns(self.asset_prices.values)
+        factor_log_returns = self._get_factor_log_returns(self.factors.values[1:])
         
         self.n_assets = asset_log_returns.shape[1]
         self.n_factors = factor_log_returns.shape[1]
@@ -160,8 +170,10 @@ class StaticStudentTSimulator(BaseMonteCarloSimulator):
             Sigma_final = Sigma_new
             
         self.copula_corr = Sigma_final
+        
+        self.is_fitted = True
               
-    def simulate(self, starting_prices: np.ndarray, starting_factors: np.ndarray, num_simulations: int, num_steps: int) -> tuple:
+    def simulate(self, starting_prices: np.ndarray, num_simulations: int, num_steps: int) -> tuple:
 
         d = self.n_assets + self.n_factors
         
@@ -191,14 +203,18 @@ class StaticStudentTSimulator(BaseMonteCarloSimulator):
 
 class StaticSkewedTSimulator(BaseMonteCarloSimulator):    
     def __init__(self, maxiter = 1000, tol = 1e-8):
+        super().__init__()
         self.maxiter = maxiter
         self.tol = tol
     
     
     def fit(self, asset_prices: pd.DataFrame, factors: pd.DataFrame):
         
-        asset_log_returns = self._get_price_log_returns(asset_prices.values)
-        factor_log_returns = self._get_factor_log_returns(factors.values[1:])
+        self.asset_prices = asset_prices
+        self.factors = factors
+        
+        asset_log_returns = self._get_price_log_returns(self.asset_prices.values)
+        factor_log_returns = self._get_factor_log_returns(self.factors.values[1:])
         
         self.n_assets = asset_log_returns.shape[1]
         self.n_factors = factor_log_returns.shape[1]
@@ -280,7 +296,9 @@ class StaticSkewedTSimulator(BaseMonteCarloSimulator):
             
         self.copula_corr = Sigma_final
         
-    def simulate(self, starting_prices: np.ndarray, starting_factors: np.ndarray, num_simulations: int, num_steps: int) -> tuple:
+        self.is_fitted = True
+        
+    def simulate(self, starting_prices: np.ndarray, num_simulations: int, num_steps: int) -> tuple:
 
         d = self.n_assets + self.n_factors
         
@@ -313,13 +331,17 @@ class StaticSkewedTSimulator(BaseMonteCarloSimulator):
     
 class DynamicSkewedTSimulator(BaseMonteCarloSimulator):
     def __init__(self, maxiter = 1000, tol = 1e-8):
+        super().__init__()
         self.maxiter = maxiter
         self.tol = tol
         
     def fit(self, asset_prices: pd.DataFrame, factors: pd.DataFrame):
         
-        asset_log_returns = self._get_price_log_returns(asset_prices.values)
-        factor_log_returns = self._get_factor_log_returns(factors.values[1:])
+        self.asset_prices = asset_prices
+        self.factors = factors
+        
+        asset_log_returns = self._get_price_log_returns(self.asset_prices.values)
+        factor_log_returns = self._get_factor_log_returns(self.factors.values[1:])
         
         self.n_assets = asset_log_returns.shape[1]
         self.n_factors = factor_log_returns.shape[1]
@@ -430,7 +452,8 @@ class DynamicSkewedTSimulator(BaseMonteCarloSimulator):
         self.Qbar = Sigma_final
         
         self.dcc_a, self.dcc_b = self._estimate_dcc_params(Y_final, self.copula_df, self.Qbar)
-        
+    
+        self.is_fitted = True
         
     def _estimate_dcc_params(self, Y, nu, Qbar):
         T, d = Y.shape
@@ -470,7 +493,7 @@ class DynamicSkewedTSimulator(BaseMonteCarloSimulator):
         
         return res.x[0], res.x[1]
     
-    def simulate(self, starting_prices: np.ndarray, starting_factors: np.ndarray, num_simulations: int, num_steps: int) -> tuple:
+    def simulate(self, starting_prices: np.ndarray, num_simulations: int, num_steps: int) -> tuple:
         
         joint_sim_log_returns = np.zeros((num_simulations, num_steps - 1, self.n_assets + self.n_factors))
         
@@ -547,19 +570,24 @@ class DynamicSkewedTSimulator(BaseMonteCarloSimulator):
 
 class HistoricalBootstrapSimulator(BaseMonteCarloSimulator):
     def __init__(self, block_size: int = 5):
+        super().__init__()
         self.block_size = block_size
         
     def fit(self, asset_prices: pd.DataFrame, factors: pd.DataFrame):
-        asset_log_returns = self._get_price_log_returns(asset_prices.values)
-        factor_raw_returns = factors.values[1:] 
+        self.asset_prices = asset_prices
+        self.factors = factors
+        
+        asset_log_returns = self._get_price_log_returns(self.asset_prices.values)
+        factor_raw_returns = self.factors.values[1:] 
         
         self.n_assets = asset_log_returns.shape[1]
         self.n_factors = factor_raw_returns.shape[1]
         
         self.historical_joint_returns = np.concatenate((asset_log_returns, factor_raw_returns), axis=1)
         self.T_history = self.historical_joint_returns.shape[0]
+        self.is_fitted = True
 
-    def simulate(self, starting_prices: np.ndarray, starting_factors: np.ndarray, num_simulations: int, num_steps: int) -> tuple:
+    def simulate(self, starting_prices: np.ndarray, num_simulations: int, num_steps: int) -> tuple:
         
         d = self.n_assets + self.n_factors
         joint_sim_returns = np.zeros((num_simulations, num_steps, d))
