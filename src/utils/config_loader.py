@@ -73,4 +73,16 @@ def build_bounds_and_constraints(cfg):
             })
 
   
-    return bounds, static_constraints
+    dynamic_constraints = {}
+  
+    if 'dynamic_constraints' in cfg:
+        
+        dynamic_cfg = cfg['dynamic_constraints']
+        
+        if 'turnover_limit' in dynamic_cfg:
+            dynamic_constraints['max_turnover'] = float(dynamic_cfg['turnover_limit']['max'])
+            
+        if 'rebalance_threshold' in dynamic_cfg:
+            dynamic_constraints['min_diff_to_rebalance'] = float(dynamic_cfg['rebalance_threshold']['min'])
+
+    return bounds, static_constraints, dynamic_constraints

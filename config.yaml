@@ -25,6 +25,12 @@ sector_constraints:
     tickers: ["FCX", "NEM", "XOM"]
     max_weight: 0.20
 
+dynamic_constraints:
+  turnover_limit:
+    max: 0.5
+  rebalance_threshold:
+    min: 0.005
+
 monte_carlo:
   num_simulations: 100000
   chunk_size: 100
@@ -38,4 +44,4 @@ backtest:
 
 frictions:
   slippage: 0.0010
-  transaction_cost: 0.0002
+  commission_rate: 0.0002
