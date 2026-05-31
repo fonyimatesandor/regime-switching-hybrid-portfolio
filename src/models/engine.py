@@ -1,9 +1,20 @@
 from abc import ABC, abstractmethod
 import numpy as np
 import pandas as pd
-from scipy.optimize import minimize
+import scipy.sparse as sp
+import osqp
 
+_OSQP_INF = osqp.constant('OSQP_INFTY')
 
+_OSQP_SETTINGS = dict(
+    warm_starting=True,
+    verbose=False,
+    polish=True,
+    eps_abs=1e-8,
+    eps_rel=1e-8,
+    max_iter=4000,
+)
+ 
 class BaseStrategy(ABC):
     def __init__(self, 
                  assets: pd.DataFrame, 
@@ -29,20 +40,63 @@ class BaseStrategy(ABC):
         self.commission_rate = commission_rate
         self.slippage_rate = slippage_rate
         
+        self.num_assets = self.prices.shape[1]
+        
         if allocation_bounds is not None:
             self.allocation_bounds = allocation_bounds
         else:
             self.allocation_bounds = [(0.0, 1.0) for _ in range(self.prices.shape[1])]
         
+        self.lb = np.array([b[0] for b in self.allocation_bounds], dtype=np.float64)
+        self.ub = np.array([b[1] for b in self.allocation_bounds], dtype=np.float64)
+
         if static_constraints is not None:
             self.static_constraints = static_constraints
         else: 
-            self.static_constraints = []    
-            
+            self.static_constraints = []        
+                
         if dynamic_constraints is not None:
             self.dynamic_constraints = dynamic_constraints
         else:
             self.dynamic_constraints = {}
+        
+        self.osqp_static = self._scipy_constraints_to_osqp(self.static_constraints, self.num_assets)
+        
+        self.dc = self.dynamic_constraints
+        self.has_turnover_limit = 'max_turnover' in self.dc
+        self.has_rebalance_threshold = 'min_diff_to_rebalance' in self.dc
+        
+        self.has_dynamic_constraints = self.has_turnover_limit or self.has_rebalance_threshold
+        
+        if not self.has_dynamic_constraints:
+            
+            P, A, l, u = self._build_static_qp(self.num_assets, self.lb, self.ub, self.osqp_static)
+            self.osqp_solver_static = osqp.OSQP()
+            self.osqp_solver_static.setup(P, np.zeros(self.num_assets), A, l, u, **_OSQP_SETTINGS)
+            self.q_s = np.zeros(self.num_assets, dtype=np.float64)
+            
+        else:
+            P, A, l, u, row_t1, row_t2 = self._build_dynamic_qp(self.num_assets, self.lb, self.ub, self.osqp_static, self.has_turnover_limit, self.has_rebalance_threshold)
+        
+            offset = 3 * self.num_assets + 1
+            
+            if self.has_turnover_limit:
+                u[offset] = self.dc['max_turnover']
+                
+            if self.has_rebalance_threshold:
+                l[offset + int(self.has_turnover_limit)] = self.dc['min_diff_to_rebalance']
+                
+            self.osqp_solver_dynamic = osqp.OSQP()
+            self.osqp_solver_dynamic.setup(P, np.zeros(2 * self.num_assets), A, l, u, **_OSQP_SETTINGS)
+            
+            self._l_d = l.copy()
+            self._u_d = u.copy()
+            
+            self._row_t1 = row_t1
+            self._row_t2 = row_t2
+            
+            self.q_d = np.zeros(2 * self.num_assets, dtype=np.float64)
+
         
         
     def run_backtest(self):
@@ -61,7 +115,6 @@ class BaseStrategy(ABC):
         self._initialize_portfolio()
         
         for period in range(1, self.num_periods):
-            print(f"Processing period {period}/{self.num_periods - 1}", end='\r')
             if period % self.rebalance_frequency == 0:
                 target_weights = self._compute_target_weights(period)
                 self._rebalance_portfolio(period, target_weights)
@@ -125,75 +178,167 @@ class BaseStrategy(ABC):
     
         self.weights[period] = np.divide(self.asset_values[period], self.portfolio_value[period], out=np.zeros_like(self.asset_values[period]), where=self.portfolio_value[period] != 0)
        
-       
-    def _validate_weights(self, period: int, weights: np.ndarray) -> np.ndarray:
-    
-        bound_constraints = []
-        for i, (min_bound, max_bound) in enumerate(self.allocation_bounds):
-            bound_constraints.append({'type': 'ineq', 'fun': lambda w, i=i, min_bound=min_bound: w[i] - min_bound})
-            bound_constraints.append({'type': 'ineq', 'fun': lambda w, i=i, max_bound=max_bound: max_bound - w[i]})
-    
-        constraints_to_check = self.static_constraints + bound_constraints + [{'type': 'eq', 'fun': lambda w: np.sum(w) - 1.0}]
-        
-        dynamic_constraints = []
-        
-        if 'max_turnover' in self.dynamic_constraints:
-            max_turnover = self.dynamic_constraints['max_turnover']
-            turnover_constraint = {
-                'type': 'ineq',
-                'fun': lambda w, p=period, m=max_turnover: m - np.sum(np.abs(w - self.weights[p - 1]))
-            }
-            dynamic_constraints.append(turnover_constraint)
-            
-        if 'min_diff_to_rebalance' in self.dynamic_constraints:
-            min_diff = self.dynamic_constraints['min_diff_to_rebalance']
-            diff = np.abs(weights - self.weights[period - 1])
-
-            for i in range(self.num_assets):
-                if diff[i] < min_diff:
-                    dynamic_constraints.append({
-                        'type': 'eq',
-                        'fun': lambda w, i=i, p=period: w[i] - self.weights[p - 1][i]
-                    })
-                else:
-                    dynamic_constraints.append({
-                        'type': 'ineq',
-                        'fun': lambda w, i=i, p=period, d=min_diff: np.abs(w[i] - self.weights[p - 1][i]) - d
-                    })
-                
-        constraints_to_check += dynamic_constraints
-        
-        truth_mask = []
-        
-        for constraint in constraints_to_check:
-            if constraint['type'] == 'eq':
-                truth_mask.append(np.isclose(constraint['fun'](weights), 0.0))
-            elif constraint['type'] == 'ineq':
-                truth_mask.append(constraint['fun'](weights) >= 0.0)
-        
-        
-        if not all(truth_mask):
-            
-            def objective(w):
-                return np.sum((w - weights) ** 2)
-            
-            result = minimize(objective, weights, constraints=constraints_to_check)
-            
-            if result.success:
-                return result.x
-            else:
-                return weights
-        else:
-            return weights
-        
-        
     @abstractmethod
     def _compute_target_weights(self, period: int) -> np.ndarray:
         pass
+       
+    def _validate_weights(self, period: int, target_weights: np.ndarray) -> np.ndarray:
+            
+        if not self.has_dynamic_constraints:
+            
+            q = self.q_s
+            np.multiply(-2.0, target_weights, out=q)
+            self.osqp_solver_static.update(q=q)
+            res = self.osqp_solver_static.solve()
+            
+            if res.info.status in ['solved', 'solved_inaccurate']:
+                return res.x
+            else:
+                return target_weights
+            
+        else:
+            
+            prew_w = self.weights[period - 1] if period > 0 else np.zeros(self.num_assets)
+            
+            q = self.q_d
+            q[:self.num_assets] = -2.0 * target_weights
+            
+            u = self._u_d
+            t1s = self._row_t1
+            t2s = self._row_t2
+            u[t1s:t1s + self.num_assets] = prew_w
+            u[t2s:t2s + self.num_assets] = -prew_w
+            
+            self.osqp_solver_dynamic.update(q=q, u=u, l=self._l_d)
+            res = self.osqp_solver_dynamic.solve()
+            
+            if res.info.status in ['solved', 'solved_inaccurate']:
+                return res.x[:self.num_assets]
+            else:
+                return target_weights
+            
+            
+    def _scipy_constraints_to_osqp(self, scipy_constraints: list[dict], n: int):
+        
+        w0 = np.zeros(n, dtype=np.float64)
+        osqp_constraints = []
+        
+        for c in scipy_constraints:
+            jac = np.asarray(c['jac'](w0), dtype=np.float64)
+            f0 = float(c['fun'](w0))
+            
+            A_row = jac.reshape(-1, n)
+            b = -(A_row @ w0) - f0 * np.ones(A_row.shape[0])
+
+            b = np.full(A_row.shape[0], -f0)
+
+            if c['type'] == 'ineq':
+                l = b
+                u = np.full(A_row.shape[0], _OSQP_INF)
+            
+            elif c['type'] == 'eq':
+                l = b
+                u = b.copy()
+                
+            osqp_constraints.append({ 'A': A_row, 'l': l, 'u': u })
+
+        return osqp_constraints
+    
+    
+    def _build_static_qp(
+        self,
+        n: int,
+        lb: np.ndarray,
+        ub: np.ndarray,
+        osqp_constraints: list[dict],
+        ) -> tuple[sp.csc_matrix, sp.csc_matrix, np.ndarray, np.ndarray]:             
+            
+        In   = sp.eye(n, format='csc')
+        ones = sp.csc_matrix(np.ones((1, n)))
+    
+        A_rows = [In, ones]
+        l_rows = [lb, np.array([1.0])]
+        u_rows = [ub, np.array([1.0])]
+    
+        for c in osqp_constraints:
+            A_rows.append(sp.csc_matrix(c['A']))
+            l_rows.append(np.where(np.isfinite(c['l']), c['l'], -_OSQP_INF))
+            u_rows.append(np.where(np.isfinite(c['u']), c['u'],  _OSQP_INF))
+    
+        return (
+            In * 2.0,
+            sp.vstack(A_rows, format='csc'),
+            np.concatenate(l_rows),
+            np.concatenate(u_rows),
+    )
         
         
-        
-        
+    def _build_dynamic_qp(
+        self,
+        n: int,
+        lb: np.ndarray,
+        ub: np.ndarray,
+        osqp_constraints: list[dict],
+        has_turnover: bool,
+        has_min_diff: bool,
+    ) -> tuple:
+       
+        N   = 2 * n
+        In  = sp.eye(n, format='csc')
+        Zn  = sp.csc_matrix((n, n))
+        ones_n  = sp.csc_matrix(np.ones((1, n)))
+        zeros_n = sp.csc_matrix(np.zeros((1, n)))
+    
+        P = sp.block_diag([In * 2.0, sp.csc_matrix((n, n))], format='csc')
+    
+        A_rows, l_rows, u_rows = [], [], []
+    
+        A_rows.append(sp.hstack([In, Zn], format='csc'))
+        l_rows.append(lb);  u_rows.append(ub)
+    
+        A_rows.append(sp.hstack([ones_n, zeros_n], format='csc'))
+        l_rows.append(np.array([1.0]));  u_rows.append(np.array([1.0]))
+    
+        row_t1_start = n + 1
+        A_rows.append(sp.hstack([In, -In], format='csc'))
+        l_rows.append(np.full(n, -_OSQP_INF))
+        u_rows.append(np.zeros(n))          
+    
+        row_t2_start = 2 * n + 1
+        A_rows.append(sp.hstack([-In, -In], format='csc'))
+        l_rows.append(np.full(n, -_OSQP_INF))
+        u_rows.append(np.zeros(n))          
+    
+        if has_turnover:
+            A_rows.append(sp.hstack([zeros_n, ones_n], format='csc'))
+            l_rows.append(np.array([-_OSQP_INF]))
+            u_rows.append(np.array([0.0]))  
+    
+        if has_min_diff:
+            A_rows.append(sp.hstack([zeros_n, ones_n], format='csc'))
+            l_rows.append(np.array([0.0]))  
+            u_rows.append(np.array([_OSQP_INF]))
+    
+        for c in osqp_constraints:
+            Ac = sp.csc_matrix(c['A'])
+            m  = Ac.shape[0]
+            A_rows.append(sp.hstack([Ac, sp.csc_matrix((m, n))], format='csc'))
+            l_rows.append(np.where(np.isfinite(c['l']), c['l'], -_OSQP_INF))
+            u_rows.append(np.where(np.isfinite(c['u']), c['u'],  _OSQP_INF))
+    
+        A_rows.append(sp.hstack([Zn, In], format='csc'))
+        l_rows.append(np.zeros(n))
+        u_rows.append(np.full(n, _OSQP_INF))
+    
+        return (
+            P,
+            sp.vstack(A_rows, format='csc'),
+            np.concatenate(l_rows),
+            np.concatenate(u_rows),
+            row_t1_start,
+            row_t2_start,
+        )
+    
         
         
         
