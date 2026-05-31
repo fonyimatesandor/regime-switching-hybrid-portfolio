@@ -4,7 +4,7 @@ from typing import Literal
 import osqp
 import scipy.sparse as sp
 
-from .engine import BaseStrategy
+from src.backtest.engine import BaseStrategy
 
 from src.estimators.covariance import CovarianceEstimator, HistoricalCovarianceEstimator
 from src.estimators.returns import ReturnEstimator, HistoricalReturnEstimator

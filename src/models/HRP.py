@@ -3,7 +3,7 @@ import pandas as pd
 import scipy.cluster.hierarchy as sch
 import scipy.spatial.distance as ssd
 
-from .engine import BaseStrategy
+from src.backtest.engine import BaseStrategy
 
 from src.estimators.covariance import CovarianceEstimator, HistoricalCovarianceEstimator
 

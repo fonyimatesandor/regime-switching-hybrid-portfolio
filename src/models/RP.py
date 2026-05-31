@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 import cvxpy as cp
 
-from .engine import BaseStrategy
+from src.backtest.engine import BaseStrategy
 
 from src.estimators.covariance import CovarianceEstimator, HistoricalCovarianceEstimator
 

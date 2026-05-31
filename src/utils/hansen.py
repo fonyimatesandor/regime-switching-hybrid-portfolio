@@ -1,8 +1,6 @@
 import numpy as np
 from scipy.special import gamma, stdtr, stdtrit
 from scipy.optimize import minimize, brentq
-from scipy.integrate import quad
-
 
 class HansenSkewedT:
     """

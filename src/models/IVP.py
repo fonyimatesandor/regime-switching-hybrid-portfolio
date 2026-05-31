@@ -1,7 +1,7 @@
 import numpy as np
 import pandas as pd
 
-from .engine import BaseStrategy
+from src.backtest.engine import BaseStrategy
 
 class InverseVariancePortfolio(BaseStrategy):
     def __init__(self, 

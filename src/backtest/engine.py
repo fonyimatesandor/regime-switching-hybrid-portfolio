@@ -4,7 +4,6 @@ import pandas as pd
 import scipy.sparse as sp
 import osqp
 from joblib import Parallel, delayed
-import copy
 import inspect
 import typing
 
