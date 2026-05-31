@@ -39,8 +39,7 @@ backtest:
   initial_capital: 1000000
   rebalance_period: 20
   lookback_window: 252
-  max_turnover_per_period: 0.5
-  min_diff_to_rebalance: 0.005
+
 
 frictions:
   slippage: 0.0010
