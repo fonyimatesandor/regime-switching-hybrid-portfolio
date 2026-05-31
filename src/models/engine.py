@@ -3,6 +3,12 @@ import numpy as np
 import pandas as pd
 import scipy.sparse as sp
 import osqp
+from joblib import Parallel, delayed
+import copy
+import inspect
+import typing
+
+from src.data_generation.monte_carlo import BaseMonteCarloSimulator
 
 _OSQP_INF = osqp.constant('OSQP_INFTY')
 
@@ -218,6 +224,48 @@ class BaseStrategy(ABC):
                 return target_weights
             
             
+    def run_MC_backtest(self, simulator: BaseMonteCarloSimulator, num_simulations: int = 1000, workers: int = 1, batch_size: int = 100) -> np.ndarray:
+        
+        if not simulator.is_fitted:
+            raise ValueError("Simulator must be fit to data before running Monte Carlo backtest.")
+        
+        full_batches = num_simulations // batch_size
+        remainder = num_simulations % batch_size
+        
+        batches = [batch_size] * full_batches
+        if remainder > 0:
+            batches.append(remainder)
+            
+        cls = self.__class__
+        sig = inspect.signature(cls.__init__)
+        params = list(sig.parameters.keys())[1:]
+
+        init_kwargs = {}
+        for p in params:
+            if p == 'assets':
+                continue
+            if hasattr(self, p):
+                init_kwargs[p] = getattr(self, p)
+
+        assets_columns = list(self.assets.columns) if hasattr(self.assets, 'columns') else None
+        dates = list(map(str, self.dates)) if hasattr(self, 'dates') else None
+
+        results = Parallel(n_jobs=workers)(
+            delayed(_mc_batch_worker)(
+                simulator,
+                cls,
+                init_kwargs,
+                assets_columns,
+                dates,
+                self.prices[0],
+                self.num_periods,
+                b_size,
+            )
+            for b_size in batches
+        )
+
+        return np.vstack(results)
+      
     def _scipy_constraints_to_osqp(self, scipy_constraints: list[dict], n: int):
         
         w0 = np.zeros(n, dtype=np.float64)
@@ -340,11 +388,43 @@ class BaseStrategy(ABC):
         )
     
         
+def _mc_batch_worker(
+    simulator: BaseMonteCarloSimulator,
+    cls: typing.Type[BaseStrategy],
+    init_kwargs: dict,
+    assets_columns: typing.Optional[list],
+    dates: typing.Optional[list],
+    starting_prices: np.ndarray = None,
+    num_steps: int = None,
+    current_batch_size: int = 0,
+):
+    simulated_prices, _ = simulator.simulate(
+        starting_prices=starting_prices,
+        num_simulations=current_batch_size,
+        num_steps=num_steps,
+    )
+
+    batch_results = np.zeros((current_batch_size, num_steps))
+
+    for i in range(current_batch_size):
+        sim_prices = simulated_prices[i]
+        try:
+            index = pd.to_datetime(dates) if dates is not None else None
+            assets_df = pd.DataFrame(sim_prices, columns=assets_columns, index=index)
+        except Exception:
+            assets_df = pd.DataFrame(sim_prices)
+
+        kwargs = init_kwargs.copy()
+        kwargs['assets'] = assets_df
+        strategy = cls(**kwargs)
+        strategy.run_backtest()
+        batch_results[i] = strategy.portfolio_value
+
+    return batch_results        
         
         
         
-        
-    
+
         
         
         
