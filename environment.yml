@@ -20,3 +20,4 @@ dependencies:
   - tf-keras
   - alpaca-py
   - pyyaml
+  - osqp
