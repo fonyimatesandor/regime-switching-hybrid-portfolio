@@ -21,3 +21,5 @@ dependencies:
   - alpaca-py
   - pyyaml
   - osqp
+  - cvxpy
+  - clarabel

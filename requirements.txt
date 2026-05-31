@@ -16,3 +16,5 @@ tf-keras
 alpaca-py
 pyyaml
 osqp
+cvxpy
+clarabel
