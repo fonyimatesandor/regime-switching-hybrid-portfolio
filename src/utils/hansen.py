@@ -2,6 +2,7 @@ import numpy as np
 from scipy.special import gamma, stdtr, stdtrit
 from scipy.optimize import minimize, brentq
 
+
 class HansenSkewedT:
     """
     Hansen (1994) skewed-t distribution.
@@ -11,28 +12,24 @@ class HansenSkewedT:
     """
 
     @staticmethod
-    def _constants(eta, lam):
+    def _constants(eta, lam) -> tuple[float, float, float]:
         c = gamma((eta + 1) / 2) / (np.sqrt(np.pi * (eta - 2)) * gamma(eta / 2))
         a = 4 * lam * c * (eta - 2) / (eta - 1)
         b = np.sqrt(1 + 3 * lam**2 - a**2)
         return a, b, c
 
     @classmethod
-    def logpdf(cls, x, eta, lam, loc=0.0, scale=1.0):
+    def logpdf(cls, x, eta, lam, loc=0.0, scale=1.0) -> float:
         z = (x - loc) / scale
         a, b, c = cls._constants(eta, lam)
 
-        left  = z < -a / b
-        inner = np.where(
-            left,
-            (b * z + a) / (1 - lam),
-            (b * z + a) / (1 + lam)
-        )
+        left = z < -a / b
+        inner = np.where(left, (b * z + a) / (1 - lam), (b * z + a) / (1 + lam))
         log_kernel = -((eta + 1) / 2) * np.log(1 + inner**2 / (eta - 2))
         return np.log(b) + np.log(c) + log_kernel - np.log(scale)
 
     @classmethod
-    def cdf(cls, x, eta, lam, loc=0.0, scale=1.0):
+    def cdf(cls, x, eta, lam, loc=0.0, scale=1.0) -> float:
         z = (x - loc) / scale
         a, b, c = cls._constants(eta, lam)
 
@@ -42,14 +39,14 @@ class HansenSkewedT:
         cdf_vals = np.where(
             left,
             (1 - lam) * stdtr(eta, bza / (1 - lam) * np.sqrt(eta / (eta - 2))),
-            (1 - lam) / 2 + (1 + lam) * (
-                stdtr(eta, bza / (1 + lam) * np.sqrt(eta / (eta - 2))) - 0.5
-            )
+            (1 - lam) / 2
+            + (1 + lam)
+            * (stdtr(eta, bza / (1 + lam) * np.sqrt(eta / (eta - 2))) - 0.5),
         )
         return np.clip(cdf_vals, 1e-12, 1 - 1e-12)
 
     @classmethod
-    def ppf(cls, u, eta, lam, loc=0.0, scale=1.0):
+    def ppf(cls, u, eta, lam, loc=0.0, scale=1.0) -> np.ndarray:
         u = np.atleast_1d(u)
         result = np.zeros_like(u, dtype=float)
         for i, ui in enumerate(u):
@@ -60,8 +57,8 @@ class HansenSkewedT:
         return result
 
     @classmethod
-    def fit(cls, data):
-        loc0  = np.mean(data)
+    def fit(cls, data) -> tuple[float, float, float, float]:
+        loc0 = np.mean(data)
         scale0 = np.std(data)
 
         def nll(params):
@@ -74,6 +71,6 @@ class HansenSkewedT:
             nll,
             x0=[5.0, -0.1, loc0, scale0],
             bounds=[(2.1, 50), (-0.999, 0.999), (None, None), (1e-6, None)],
-            method='L-BFGS-B'
+            method="L-BFGS-B",
         )
         return tuple(res.x)
