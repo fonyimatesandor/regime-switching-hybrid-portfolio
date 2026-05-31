@@ -1,6 +1,6 @@
 import numpy as np
 import pandas as pd
-from scipy.optimize import minimize
+import cvxpy as cp
 
 from .engine import BaseStrategy
 
@@ -29,37 +29,64 @@ class RiskParityPortfolio(BaseStrategy):
             self.covariance_estimator = HistoricalCovarianceEstimator()
         else:
             self.covariance_estimator = covariance_estimator
-            
-            
+    
+    
+        self._setup_cvxpy_problem()
+
     def _compute_target_weights(self, period):
         
         period_start = max(0, period - self.lookback_period)
         price_window = self.prices[period_start:period]
         
         cov_matrix = self.covariance_estimator.estimate(price_window, period, self.lookback_period)  
+        
+        cov_matrix = (cov_matrix + cov_matrix.T) / 2.0
+        min_eig = np.min(np.linalg.eigvalsh(cov_matrix))
+        if min_eig < 0:
+            cov_matrix -= 10 * min_eig * np.eye(self.num_assets)
             
-        def objective(weights):
+        self.cov_param.value = cov_matrix
+        
+        try:
+            self.problem.solve(solver=cp.CLARABEL)
+        except cp.error.SolverError:
+            pass 
+        
+        if self.x.value is None:
+            return np.ones(self.num_assets) / self.num_assets
             
-            portfolio_var = weights.T @ cov_matrix @ weights
-            marginal_contrib = cov_matrix @ weights
+        weights = self.x.value / np.sum(self.x.value)
+        
+        return weights
+    
+    
+    def _setup_cvxpy_problem(self):
+        N = self.num_assets
+        
+        self.x = cp.Variable(N)
+        self.cov_param = cp.Parameter((N, N), PSD=True) 
+        
+        sum_x = cp.sum(self.x)
+        risk_budget = np.ones(N) / N
+        
+        objective = cp.Minimize(
+            0.5 * cp.quad_form(self.x, self.cov_param) - risk_budget @ cp.log(self.x)
+        )
+        
+        constraints = [
+            self.x >= self.lb * sum_x,
+            self.x <= self.ub * sum_x
+        ]
+        
+        for c in self.osqp_static:
+            A = c['A']
+            l = c['l']
+            u = c['u']
+            
+            for i in range(len(l)):
+                if l[i] > -1e15: 
+                    constraints.append(A[i] @ self.x >= l[i] * sum_x)
+                if u[i] < 1e15:  
+                    constraints.append(A[i] @ self.x <= u[i] * sum_x)
 
-            result = weights * marginal_contrib - portfolio_var  / self.num_assets
-            
-            return np.sum(result ** 2)
-        
-        def jacobian(weights):
-            portfolio_var = weights.T @ cov_matrix @ weights
-            marginal_contrib = cov_matrix @ weights
-            
-            grad = 2 * (weights * marginal_contrib - portfolio_var / self.num_assets) * (marginal_contrib + cov_matrix @ weights - 2 * portfolio_var / self.num_assets)
-            
-            return grad
-                
-        constraints = [{'type': 'eq', 'fun': lambda w: np.sum(w) - 1.0}] + self.static_constraints
-        
-        result = minimize(objective, jac=jacobian, x0=np.ones(self.num_assets) / self.num_assets, bounds=self.allocation_bounds, constraints=constraints)
-        
-        return result.x
-        
-            
-        
+        self.problem = cp.Problem(objective, constraints)
