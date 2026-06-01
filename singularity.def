@@ -1,0 +1,13 @@
+Bootstrap: docker
+From: condaforge/miniforge3:latest
+
+%files
+    environment.yml /environment.yml
+
+%post
+    conda env create -f /environment.yml
+
+    conda clean --all --yes
+
+    echo ". /opt/conda/etc/profile.d/conda.sh" >> $SINGULARITY_ENVIRONMENT
+    echo "conda activate regime-portfolio" >> $SINGULARITY_ENVIRONMENT
