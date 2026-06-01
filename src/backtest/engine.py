@@ -314,14 +314,13 @@ class BaseStrategy(ABC):
                 assets_columns,
                 dates,
                 self.prices[0],
-                self.num_periods,
+                self.num_periods + 1,
                 b_size,
             )
             for b_size in batches
         )
 
         results_list = list(results)
-        results_list = [r for r in results_list if r is not None]
         return np.vstack(results_list)
 
     def _scipy_constraints_to_osqp(self, scipy_constraints: list[dict], n: int):
@@ -335,7 +334,6 @@ class BaseStrategy(ABC):
             f0 = float(c["fun"](w0))
 
             A_row = jac.reshape(-1, n)
-            b = -(A_row @ w0) - f0 * np.ones(A_row.shape[0])
 
             b = np.full(A_row.shape[0], -f0)
 
@@ -473,10 +471,10 @@ def _mc_batch_worker(
 
     batch_results = np.zeros((current_batch_size, num_steps))
 
+    index = pd.to_datetime(dates) if dates is not None else None
     for i in range(current_batch_size):
         sim_prices = simulated_prices[i]
         try:
-            index = pd.to_datetime(dates) if dates is not None else None
             assets_df = pd.DataFrame(sim_prices, columns=assets_columns, index=index)
         except Exception:
             assets_df = pd.DataFrame(sim_prices)
