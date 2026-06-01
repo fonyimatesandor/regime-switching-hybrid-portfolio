@@ -271,16 +271,24 @@ class BaseStrategy(ABC):
 
     def run_MC_backtest(
         self,
-        simulator: BaseMonteCarloSimulator,
+        simulator: BaseMonteCarloSimulator = None,
+        precomputed_prices: np.ndarray = None,
         num_simulations: int = 1000,
         workers: int = 1,
         batch_size: int = 100,
     ) -> np.ndarray:
         """Runs a Monte Carlo backtest using the provided simulator to generate future price paths and applying the strategy's logic to each simulated path. Returns an array of portfolio values over time for each simulation."""
 
-        if not simulator.is_fitted:
+        if precomputed_prices is not None:
+            num_simulations = precomputed_prices.shape[0]
+        elif simulator is not None:
+            if not simulator.is_fitted:
+                raise ValueError(
+                    "Simulator must be fit to data before running Monte Carlo backtest."
+                )
+        else:
             raise ValueError(
-                "Simulator must be fit to data before running Monte Carlo backtest."
+                "Either a fitted simulator or precomputed prices must be provided to run a Monte Carlo backtest."
             )
 
         full_batches = num_simulations // batch_size
@@ -289,6 +297,13 @@ class BaseStrategy(ABC):
         batches = [batch_size] * full_batches
         if remainder > 0:
             batches.append(remainder)
+
+        batch_indices = []
+        current_index = 0
+
+        for b_size in batches:
+            batch_indices.append((current_index, current_index + b_size))
+            current_index += b_size
 
         cls = self.__class__
         sig = inspect.signature(cls.__init__)
@@ -308,7 +323,12 @@ class BaseStrategy(ABC):
 
         results = Parallel(n_jobs=workers)(
             delayed(_mc_batch_worker)(
-                simulator,
+                simulator if precomputed_prices is None else None,
+                (
+                    precomputed_prices[batch_start:batch_end]
+                    if precomputed_prices is not None
+                    else None
+                ),
                 cls,
                 init_kwargs,
                 assets_columns,
@@ -317,7 +337,7 @@ class BaseStrategy(ABC):
                 self.num_periods + 1,
                 b_size,
             )
-            for b_size in batches
+            for (batch_start, batch_end) in zip(batch_indices, batches)
         )
 
         results_list = list(results)
@@ -453,6 +473,7 @@ class BaseStrategy(ABC):
 
 def _mc_batch_worker(
     simulator: BaseMonteCarloSimulator,
+    precomputed_prices: np.ndarray,
     cls: typing.Type[BaseStrategy],
     init_kwargs: dict,
     assets_columns: typing.Optional[list],
@@ -463,11 +484,14 @@ def _mc_batch_worker(
 ) -> np.ndarray:
     """Worker function for running a batch of Monte Carlo simulations in parallel. Simulates future price paths and applies the strategy's logic to each path, returning the portfolio values over time for the batch."""
 
-    simulated_prices, _ = simulator.simulate(
-        starting_prices=starting_prices,
-        num_simulations=current_batch_size,
-        num_steps=num_steps,
-    )
+    if precomputed_prices is not None:
+        simulated_prices = precomputed_prices
+    else:
+        simulated_prices, _ = simulator.simulate(
+            starting_prices=starting_prices,
+            num_simulations=current_batch_size,
+            num_steps=num_steps,
+        )
 
     batch_results = np.zeros((current_batch_size, num_steps))
 
