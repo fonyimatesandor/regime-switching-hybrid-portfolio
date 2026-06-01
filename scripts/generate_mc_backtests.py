@@ -113,7 +113,6 @@ models_to_test.append(
 )
 
 MVO_objectives = ["min_variance", "max_return", "max_sharpe"]
-MVO_objectives = ["max_sharpe"]
 
 for cov_name, cov_estimator in covariance_estimators.items():
     for ret_name, ret_estimator in return_estimators.items():
