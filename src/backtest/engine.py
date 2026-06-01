@@ -280,7 +280,7 @@ class BaseStrategy(ABC):
         """Runs a Monte Carlo backtest using the provided simulator to generate future price paths and applying the strategy's logic to each simulated path. Returns an array of portfolio values over time for each simulation."""
 
         if precomputed_prices is not None:
-            num_simulations = precomputed_prices.shape[0]
+            num_simulations = int(precomputed_prices.shape[0])
         elif simulator is not None:
             if not simulator.is_fitted:
                 raise ValueError(
@@ -290,6 +290,8 @@ class BaseStrategy(ABC):
             raise ValueError(
                 "Either a fitted simulator or precomputed prices must be provided to run a Monte Carlo backtest."
             )
+
+        batch_size = int(batch_size)
 
         full_batches = num_simulations // batch_size
         remainder = num_simulations % batch_size
@@ -337,7 +339,7 @@ class BaseStrategy(ABC):
                 self.num_periods + 1,
                 b_size,
             )
-            for (batch_start, batch_end) in zip(batch_indices, batches)
+            for (batch_start, batch_end), b_size in zip(batch_indices, batches)
         )
 
         results_list = list(results)
@@ -486,6 +488,7 @@ def _mc_batch_worker(
 
     if precomputed_prices is not None:
         simulated_prices = precomputed_prices
+        num_steps = int(simulated_prices.shape[1])
     else:
         simulated_prices, _ = simulator.simulate(
             starting_prices=starting_prices,

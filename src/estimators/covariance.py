@@ -46,7 +46,8 @@ class FactorCovarianceEstimator(CovarianceEstimator):
     def estimate(self, price_window: np.ndarray, t: int, lookback: int) -> np.ndarray:
         returns = self._get_returns(price_window)
 
-        factors_slice = self.factors[t - lookback + 1 : t]
+        start_idx = max(0, t - lookback) + 1
+        factors_slice = self.factors[start_idx:t]
 
         RF = factors_slice[:, 0]
         F = factors_slice[:, 1:]

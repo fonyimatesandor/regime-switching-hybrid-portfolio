@@ -160,13 +160,19 @@ class MeanVariancePortfolio(BaseStrategy):
             price_window, period, self.lookback_period, cov_matrix
         )
 
+        cov_matrix = 0.5 * (cov_matrix + cov_matrix.T)
+
+        min_eig = np.min(np.real(np.linalg.eigvals(cov_matrix)))
+        if min_eig < 1e-7:
+            cov_matrix += (1e-7 - min_eig) * np.eye(self.num_assets)
+
         if self.objective == "max_sharpe":
             if np.max(expected_returns) <= 0:
                 return np.ones(self.num_assets) / self.num_assets
 
             P_y = sp.triu(sp.csc_matrix(2.0 * cov_matrix), format="csc")
             P_upper = sp.bmat(
-                [[P_y, None], [None, sp.csc_matrix((1, 1))]], format="csc"
+                [[P_y, None], [None, sp.csc_matrix([[1e-8]])]], format="csc"
             )
             q = np.zeros(self.num_assets + 1)
 
@@ -219,7 +225,13 @@ class MeanVariancePortfolio(BaseStrategy):
                     P_upper, q, self._A, self._l, self._u, verbose=False, polish=True
                 )
             else:
-                self._mvo_solver.update(Px=P_upper.data, q=q, l=self._l, u=self._u)
+                try:
+                    self._mvo_solver.update(Px=P_upper.data, Ax=A.data)
+                except ValueError:
+                    self._mvo_solver = osqp.OSQP()
+                    self._mvo_solver.setup(
+                        P_upper, q, A, self._l, self._u, verbose=False, polish=True
+                    )
 
             result = self._mvo_solver.solve()
 

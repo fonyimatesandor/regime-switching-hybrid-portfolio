@@ -56,7 +56,13 @@ class HierarchicalRiskParityPortfolio(BaseStrategy):
         )
 
         std_devs = np.sqrt(np.diag(cov_matrix))
+
+        std_devs = np.where(std_devs <= 0, 1e-8, std_devs)
+
         corr_matrix = cov_matrix / np.outer(std_devs, std_devs)
+
+        corr_matrix = np.clip(corr_matrix, -1.0, 1.0)
+        np.fill_diagonal(corr_matrix, 1.0)
 
         dist = self._correlation_distance(corr_matrix)
 

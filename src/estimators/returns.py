@@ -23,14 +23,16 @@ class HistoricalReturnEstimator(ReturnEstimator):
     def estimate(
         self, price_window: np.ndarray, t: int, lookback: int, cov_matrix: np.ndarray
     ) -> np.ndarray:
+
         returns = self._get_returns(price_window)
 
-        mean_daily_returns = np.mean(returns, axis=0)
-        annualized_returns = ((1 + mean_daily_returns) ** 252) - 1.0
+        total_log_return = np.log(price_window[-1] / price_window[0])
+        annualized_log_return = total_log_return * (252 / len(returns))
 
         annualized_variance = np.diag(cov_matrix)
+        adjusted_mu = np.exp(annualized_log_return + (0.5 * annualized_variance)) - 1.0
 
-        adjusted_mu = np.exp(annualized_returns + 0.5 * annualized_variance) - 1
+        adjusted_mu = np.clip(adjusted_mu, -20.0, 20.0)
 
         return adjusted_mu
 
@@ -49,7 +51,8 @@ class FactorReturnEstimator(ReturnEstimator):
     ) -> np.ndarray:
         returns = self._get_returns(price_window)
 
-        factors_slice = self.factors[t - lookback + 1 : t]
+        start_idx = max(0, t - lookback) + 1
+        factors_slice = self.factors[start_idx:t]
 
         RF = factors_slice[:, 0]
         F = factors_slice[:, 1:]
@@ -64,13 +67,11 @@ class FactorReturnEstimator(ReturnEstimator):
 
         daily_log_mu = mean_rf + (betas.T @ mean_factor_returns)  # Shape: (N,)
 
-        annualized_log_mu = daily_log_mu * 252
+        daily_mu = mean_rf + (betas.T @ mean_factor_returns)
 
-        annualized_variance = np.diag(cov_matrix)
+        annualized_mu = daily_mu * 252.0
 
-        adjusted_mu = np.exp(annualized_log_mu + (0.5 * annualized_variance)) - 1.0
-
-        return adjusted_mu
+        return annualized_mu
 
 
 class EquilibriumReturnEstimator(ReturnEstimator):
@@ -94,8 +95,11 @@ class EquilibriumReturnEstimator(ReturnEstimator):
     def estimate(
         self, price_window: np.ndarray, t: int, lookback: int, cov_matrix: np.ndarray
     ) -> np.ndarray:
-        market_slice = self.market_index[t - lookback : t]
-        rf_slice = self.risk_free_rate[t - lookback + 1 : t]
+
+        start_idx = max(0, t - lookback) + 1
+
+        market_slice = self.market_index[start_idx:t]
+        rf_slice = self.risk_free_rate[start_idx:t]
 
         market_simple_returns = (market_slice[1:] / market_slice[:-1]) - 1.0
         mean_mkt_daily = np.mean(market_simple_returns)
