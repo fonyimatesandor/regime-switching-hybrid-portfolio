@@ -5,6 +5,8 @@ from scipy.stats import t, multivariate_t
 from scipy.optimize import minimize_scalar
 from src.utils.hansen import HansenSkewedT
 
+MAX_LOG_RET = 0.5
+
 
 class StaticSkewedTSimulator(BaseMonteCarloSimulator):
     """Monte Carlo simulator that assumes joint skewed t distribution of asset and factor log returns, with static parameters estimated from historical data."""
@@ -135,11 +137,22 @@ class StaticSkewedTSimulator(BaseMonteCarloSimulator):
         asset_sim_log = joint_sim_log_returns[:, :, : self.n_assets]
         factor_sim_log = joint_sim_log_returns[:, :, self.n_assets :]
 
-        zeros = np.zeros((num_simulations, 1, self.n_assets))
-        asset_sim_log_aligned = np.concatenate((zeros, asset_sim_log), axis=1)
+        zeros_assets = np.zeros((num_simulations, 1, self.n_assets))
+        zeros_factors = np.zeros((num_simulations, 1, self.n_factors))
+
+        asset_sim_log_aligned = np.concatenate((zeros_assets, asset_sim_log), axis=1)
+        factor_sim_log_aligned = np.concatenate((zeros_factors, factor_sim_log), axis=1)
+
+        asset_sim_log_aligned = np.clip(
+            asset_sim_log_aligned, -MAX_LOG_RET, MAX_LOG_RET
+        )
+        factor_sim_log_aligned = np.clip(
+            factor_sim_log_aligned, -MAX_LOG_RET, MAX_LOG_RET
+        )
+
         simulated_prices = (
             np.exp(asset_sim_log_aligned.cumsum(axis=1)) * starting_prices
         )
-        simulated_simple_factors = np.exp(factor_sim_log) - 1.0
+        simulated_simple_factors = np.exp(factor_sim_log_aligned) - 1.0
 
         return simulated_prices, simulated_simple_factors

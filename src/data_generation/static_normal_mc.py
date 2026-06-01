@@ -36,12 +36,15 @@ class StaticNormalSimulator(BaseMonteCarloSimulator):
         asset_sim_log = joint_sim_log_returns[:, :, : self.n_assets]
         factor_sim_log = joint_sim_log_returns[:, :, self.n_assets :]
 
-        zeros = np.zeros((num_simulations, 1, self.n_assets))
-        asset_sim_log_aligned = np.concatenate((zeros, asset_sim_log), axis=1)
+        zeros_assets = np.zeros((num_simulations, 1, self.n_assets))
+        zeros_factors = np.zeros((num_simulations, 1, self.n_factors))
+
+        asset_sim_log_aligned = np.concatenate((zeros_assets, asset_sim_log), axis=1)
+        factor_sim_log_aligned = np.concatenate((zeros_factors, factor_sim_log), axis=1)
+
         simulated_prices = (
             np.exp(asset_sim_log_aligned.cumsum(axis=1)) * starting_prices
         )
-
-        simulated_simple_factors = np.exp(factor_sim_log) - 1.0
+        simulated_simple_factors = np.exp(factor_sim_log_aligned) - 1.0
 
         return simulated_prices, simulated_simple_factors

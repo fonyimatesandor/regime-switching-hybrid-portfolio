@@ -1,3 +1,60 @@
+import os
+import sys
+import tempfile
+from contextlib import contextmanager
+
+
+@contextmanager
+def ignore_osqp_partial_update_error():
+    # 1. Create temp files to catch BOTH stdout and stderr
+    fd_out, temp_out = tempfile.mkstemp()
+    fd_err, temp_err = tempfile.mkstemp()
+
+    old_stdout = os.dup(sys.stdout.fileno())
+    old_stderr = os.dup(sys.stderr.fileno())
+
+    try:
+        # 2. Redirect BOTH OS stdout and stderr to our temp files
+        os.dup2(fd_out, sys.stdout.fileno())
+        os.dup2(fd_err, sys.stderr.fileno())
+        yield
+    finally:
+        # 3. Restore normal terminal printing immediately
+        os.dup2(old_stdout, sys.stdout.fileno())
+        os.dup2(old_stderr, sys.stderr.fileno())
+
+        os.close(old_stdout)
+        os.close(old_stderr)
+
+        # 4. Read everything the C library spit out to both pipes
+        with open(temp_out, "r") as f:
+            out_text = f.read()
+        with open(temp_err, "r") as f:
+            err_text = f.read()
+
+        # 5. Clean up the temp files
+        os.close(fd_out)
+        os.close(fd_err)
+        os.remove(temp_out)
+        os.remove(temp_err)
+
+        # 6. Filter out your specific error line
+        target_error = "ERROR in osqp_update_data_mat: index vector is required for partial updates of P"
+
+        filtered_out = "\n".join(
+            line for line in out_text.splitlines() if target_error not in line
+        )
+        filtered_err = "\n".join(
+            line for line in err_text.splitlines() if target_error not in line
+        )
+
+        # 7. Print any remaining output/errors back to the terminal on their correct streams
+        if filtered_out.strip():
+            sys.stdout.write(filtered_out + "\n")
+        if filtered_err.strip():
+            sys.stderr.write(filtered_err + "\n")
+
+
 import numpy as np
 import pandas as pd
 from typing import Literal
@@ -188,7 +245,8 @@ class MeanVariancePortfolio(BaseStrategy):
                 )
             else:
                 try:
-                    self._mvo_solver.update(Px=P_upper.data, Ax=A.data)
+                    with ignore_osqp_partial_update_error():
+                        self._mvo_solver.update(Px=P_upper.data, Ax=A.data)
                 except ValueError:
                     self._mvo_solver = osqp.OSQP()
                     self._mvo_solver.setup(
@@ -226,11 +284,18 @@ class MeanVariancePortfolio(BaseStrategy):
                 )
             else:
                 try:
-                    self._mvo_solver.update(Px=P_upper.data, Ax=A.data)
+                    with ignore_osqp_partial_update_error():
+                        self._mvo_solver.update(Px=P_upper.data)
                 except ValueError:
                     self._mvo_solver = osqp.OSQP()
                     self._mvo_solver.setup(
-                        P_upper, q, A, self._l, self._u, verbose=False, polish=True
+                        P_upper,
+                        q,
+                        self._A,
+                        self._l,
+                        self._u,
+                        verbose=False,
+                        polish=True,
                     )
 
             result = self._mvo_solver.solve()

@@ -7,13 +7,16 @@ from src.utils.hansen import HansenSkewedT
 from arch import arch_model
 from scipy.optimize import minimize
 
+MAX_LOG_RET = 0.5
+
 
 class DynamicSkewedTSimulator(BaseMonteCarloSimulator):
-    def __init__(self, maxiter=1000, tol=1e-8):
+    def __init__(self, maxiter=1000, tol=1e-8) -> None:
+        super().__init__()
         self.maxiter = maxiter
         self.tol = tol
 
-    def fit(self, asset_prices: pd.DataFrame, factors: pd.DataFrame):
+    def fit(self, asset_prices: pd.DataFrame, factors: pd.DataFrame) -> None:
 
         asset_log_returns = self._get_price_log_returns(asset_prices.values)
         factor_log_returns = self._get_factor_log_returns(factors.values[1:])
@@ -227,11 +230,10 @@ class DynamicSkewedTSimulator(BaseMonteCarloSimulator):
 
                 for i in range(d):
                     omega, alpha, gamma, beta = self.garch_params[i]
-                    asym_shock = (ret_prev[i] ** 2) if ret_prev[i] < 0 else 0.0
+                    indicator = 1.0 if ret_prev[i] < 0 else 0.0
                     sigma2_t[i] = (
                         omega
-                        + alpha * (ret_prev[i] ** 2)
-                        + gamma * asym_shock
+                        + (alpha + gamma * indicator) * (ret_prev[i] ** 2)
                         + beta * sigma2_t[i]
                     )
 
@@ -278,6 +280,14 @@ class DynamicSkewedTSimulator(BaseMonteCarloSimulator):
         zeros_factors = np.zeros((num_simulations, 1, self.n_factors))
         asset_sim_log_aligned = np.concatenate((zeros_assets, asset_sim_log), axis=1)
         factor_sim_log_aligned = np.concatenate((zeros_factors, factor_sim_log), axis=1)
+
+        asset_sim_log_aligned = np.clip(
+            asset_sim_log_aligned, -MAX_LOG_RET, MAX_LOG_RET
+        )
+        factor_sim_log_aligned = np.clip(
+            factor_sim_log_aligned, -MAX_LOG_RET, MAX_LOG_RET
+        )
+
         simulated_prices = (
             np.exp(asset_sim_log_aligned.cumsum(axis=1)) * starting_prices
         )
