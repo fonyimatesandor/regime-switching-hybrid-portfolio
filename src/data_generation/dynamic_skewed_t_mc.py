@@ -198,7 +198,6 @@ class DynamicSkewedTSimulator(BaseMonteCarloSimulator):
     def simulate(
         self,
         starting_prices: np.ndarray,
-        starting_factors: np.ndarray,
         num_simulations: int,
         num_steps: int,
     ) -> tuple:
