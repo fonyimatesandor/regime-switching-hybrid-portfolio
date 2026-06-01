@@ -32,7 +32,7 @@ dynamic_constraints:
     min: 0.005
 
 monte_carlo:
-  num_simulations: 10000
+  num_simulations: 2500
   chunk_size: 100
 
 backtest:

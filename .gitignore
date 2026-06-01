@@ -192,3 +192,4 @@ data/synthetic/*
 
 # HPC job files
 *.pbs
+*.sif
