@@ -7,6 +7,7 @@ from joblib import Parallel, delayed
 import inspect
 import typing
 from src.data_generation.base_monte_carlo import BaseMonteCarloSimulator
+from src.utils.metrics import calculate_metrics
 
 _OSQP_INF = osqp.constant("OSQP_INFTY")
 
@@ -471,6 +472,16 @@ class BaseStrategy(ABC):
             row_t1_start,
             row_t2_start,
         )
+
+    def calculate_performance_metrics(self) -> dict:
+        """Calculates performance metrics based on the portfolio value over time."""
+
+        if not hasattr(self, "portfolio_value"):
+            raise ValueError(
+                "Backtest must be run before calculating performance metrics."
+            )
+
+        return calculate_metrics(self.portfolio_value)
 
 
 def _mc_batch_worker(
