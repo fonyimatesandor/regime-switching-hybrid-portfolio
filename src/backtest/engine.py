@@ -277,8 +277,9 @@ class BaseStrategy(ABC):
         num_simulations: int = 1000,
         workers: int = 1,
         batch_size: int = 100,
+        return_metrics: bool = False,
     ) -> np.ndarray:
-        """Runs a Monte Carlo backtest using the provided simulator to generate future price paths and applying the strategy's logic to each simulated path. Returns an array of portfolio values over time for each simulation."""
+        """Runs a Monte Carlo backtest using the provided simulator to generate future price paths and applying the strategy's logic to each simulated path. If precomputed_prices is provided, it will be used directly instead of simulating new paths. Returns the portfolio values over time for each simulation, or calculates performance metrics."""
 
         if precomputed_prices is not None:
             num_simulations = int(precomputed_prices.shape[0])
@@ -339,12 +340,23 @@ class BaseStrategy(ABC):
                 self.prices[0],
                 self.num_periods + 1,
                 b_size,
+                return_metrics,
             )
             for (batch_start, batch_end), b_size in zip(batch_indices, batches)
         )
 
-        results_list = list(results)
-        return np.vstack(results_list)
+        if return_metrics:
+            combined_metrics = {}
+
+            for key in results[0].keys():
+                combined_metrics[key] = np.concatenate(
+                    [batch[key] for batch in results]
+                )
+
+            return combined_metrics
+
+        else:
+            return np.vstack(list(results))
 
     def _scipy_constraints_to_osqp(self, scipy_constraints: list[dict], n: int):
         """Converts constraints defined in the format used by scipy.optimize to the format required by OSQP."""
@@ -494,6 +506,7 @@ def _mc_batch_worker(
     starting_prices: np.ndarray,
     num_steps: int,
     current_batch_size: int = 0,
+    return_metrics: bool = False,
 ) -> np.ndarray:
     """Worker function for running a batch of Monte Carlo simulations in parallel. Simulates future price paths and applies the strategy's logic to each path, returning the portfolio values over time for the batch."""
 
@@ -507,7 +520,10 @@ def _mc_batch_worker(
             num_steps=num_steps,
         )
 
-    batch_results = np.zeros((current_batch_size, num_steps))
+    batch_results = (
+        np.zeros((current_batch_size, num_steps)) if not return_metrics else None
+    )
+    batch_metrics = {}
 
     index = pd.to_datetime(dates) if dates is not None else None
     for i in range(current_batch_size):
@@ -521,6 +537,20 @@ def _mc_batch_worker(
         kwargs["assets"] = assets_df
         strategy = cls(**kwargs)
         strategy.run_backtest()
-        batch_results[i] = strategy.portfolio_value
 
-    return batch_results
+        if return_metrics:
+            metrics = strategy.calculate_performance_metrics()
+            if not batch_metrics:
+                batch_metrics = {
+                    k: np.zeros(current_batch_size) for k in metrics.keys()
+                }
+
+            for k, v in metrics.items():
+                batch_metrics[k][i] = v
+        else:
+            batch_results[i] = strategy.portfolio_value
+
+    if return_metrics:
+        return batch_metrics
+    else:
+        return batch_results
