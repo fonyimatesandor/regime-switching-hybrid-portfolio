@@ -6,7 +6,6 @@ import osqp
 from joblib import Parallel, delayed
 import inspect
 import typing
-import multiprocessing
 from src.data_generation.base_monte_carlo import BaseMonteCarloSimulator
 from src.utils.metrics import calculate_metrics
 
@@ -326,8 +325,8 @@ class BaseStrategy(ABC):
         )
         dates = list(map(str, self.dates)) if hasattr(self, "dates") else None
 
-        args_list = [
-            (
+        results = Parallel(n_jobs=workers)(
+            delayed(_mc_batch_worker)(
                 simulator if precomputed_prices is None else None,
                 (
                     precomputed_prices[batch_start:batch_end]
@@ -344,12 +343,7 @@ class BaseStrategy(ABC):
                 return_metrics,
             )
             for (batch_start, batch_end), b_size in zip(batch_indices, batches)
-        ]
-
-        pool_workers = multiprocessing.cpu_count() if workers == -1 else workers
-
-        with multiprocessing.Pool(processes=pool_workers, maxtasksperchild=5) as pool:
-            results = pool.starmap(_mc_batch_worker, args_list)
+        )
 
         if return_metrics:
             combined_metrics = {}
