@@ -32,7 +32,7 @@ dynamic_constraints:
     min: 0.005
 
 monte_carlo:
-  num_simulations: 100000
+  num_simulations: 10000
   num_precomputed_paths: 100
   chunk_size: 100
 
