@@ -38,7 +38,7 @@ for model in models_to_test:
 json.dump(
     {
         "models_tested": [model["name"] for model in models_to_test],
-        "simulators_tested": list(simulators.keys()),
+        "simulators_tested": [simulator_name],
         "config": config,
     },
     open("data/mc_metrics/mc_backtest_summary_historical_bootstrap.json", "w"),

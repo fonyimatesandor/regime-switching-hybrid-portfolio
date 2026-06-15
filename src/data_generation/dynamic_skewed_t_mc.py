@@ -154,6 +154,7 @@ class DynamicSkewedTSimulator(BaseMonteCarloSimulator):
         self.dcc_a, self.dcc_b = self._estimate_dcc_params(
             Y_final, self.copula_df, self.Qbar
         )
+        self.is_fitted = True
 
     def _estimate_dcc_params(self, Y, nu, Qbar):
         T, d = Y.shape
