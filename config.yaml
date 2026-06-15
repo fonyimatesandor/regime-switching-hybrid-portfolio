@@ -34,7 +34,7 @@ dynamic_constraints:
 monte_carlo:
   num_simulations: 10000
   num_precomputed_paths: 100
-  chunk_size: 100
+  chunk_size: 25
 
 backtest:
   initial_capital: 1000000
