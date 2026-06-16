@@ -18,3 +18,4 @@ pyyaml
 osqp
 cvxpy
 clarabel
+hmmlearn
