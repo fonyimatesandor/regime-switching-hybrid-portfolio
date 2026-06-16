@@ -103,8 +103,8 @@ class HMMModel(BaseHMM):
         super()._check()
         if self.df_bounds is None:
             return
-        if not (isinstance(self.df_bounds, tuple) and len(self.df_bounds) == 2):
-            raise ValueError("df_bounds must be a 2-tuple (lo, hi)")
+        if not (isinstance(self.df_bounds, (tuple, list)) and len(self.df_bounds) == 2):
+            raise ValueError("df_bounds must be a 2-tuple or list (lo, hi)")
         lo, hi = self.df_bounds
         if lo < 2.01:
             raise ValueError(
