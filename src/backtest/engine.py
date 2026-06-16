@@ -493,7 +493,8 @@ class BaseStrategy(ABC):
                 "Backtest must be run before calculating performance metrics."
             )
 
-        return calculate_metrics(self.portfolio_value)
+        self.performance_metrics = calculate_metrics(self.portfolio_value)
+        return self.performance_metrics
 
 
 def _mc_batch_worker(
