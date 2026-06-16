@@ -41,7 +41,14 @@ backtest:
   rebalance_period: 20
   lookback_window: 252
 
-
 frictions:
   slippage: 0.0010
   commission_rate: 0.0002
+
+hmm_model:
+  n_components: 4
+  n_iter: 1000
+  df_bounds: [2.01, 50]
+  vol_window: 21
+  corr_window: 21
+  draw_window: 252
