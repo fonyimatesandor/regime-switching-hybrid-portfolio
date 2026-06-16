@@ -194,3 +194,5 @@ data/synthetic/*
 *.pbs
 *.sif
 *.sh
+pbs_scripts/*
+bash_scripts/*
