@@ -5,6 +5,7 @@ from src.data_generation.static_student_t_mc import StaticStudentTSimulator
 from src.data_generation.static_skewed_t_mc import StaticSkewedTSimulator
 from src.data_generation.dynamic_skewed_t_mc import DynamicSkewedTSimulator
 from src.data_generation.historical_bootstrap_mc import HistoricalBootstrapSimulator
+from src.data_generation.hmm_mc import HMMMonteCarloSimulator
 
 from src.estimators.covariance import (
     HistoricalCovarianceEstimator,
@@ -28,6 +29,10 @@ from src.models.RP import RiskParityPortfolio
 
 from src.utils.config_loader import load_config, build_bounds_and_constraints
 
+config = load_config("./config.yaml")
+bounds, constraints, dynamic_constraints = build_bounds_and_constraints(config)
+
+
 simulators = {
     "static_normal": StaticNormalSimulator(),
     "static_student_t": StaticStudentTSimulator(),
@@ -36,8 +41,18 @@ simulators = {
     "historical_bootstrap": HistoricalBootstrapSimulator(),
 }
 
-config = load_config("./config.yaml")
-bounds, constraints, dynamic_constraints = build_bounds_and_constraints(config)
+for name, sim in list(simulators.items()):
+    hmm_sim = HMMMonteCarloSimulator(
+        n_components=config["hmm_model"]["n_components"],
+        n_iter=config["hmm_model"]["n_iter"],
+        df_bounds=config["hmm_model"]["df_bounds"],
+        vol_window=config["hmm_model"]["vol_window"],
+        corr_window=config["hmm_model"]["corr_window"],
+        draw_window=config["hmm_model"]["draw_window"],
+        simulator_type=type(sim),
+    )
+    simulators[name + "_hmm"] = hmm_sim
+
 
 asset_prices = pd.read_csv(
     "./data/raw/stock_data_05_25.csv", index_col=0, parse_dates=True
