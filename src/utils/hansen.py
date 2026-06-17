@@ -53,6 +53,10 @@ class HansenSkewedT:
             f = lambda x: cls.cdf(x, eta, lam, loc, scale) - ui
             lo = stdtrit(eta, 1e-7) * scale + loc
             hi = stdtrit(eta, 1 - 1e-7) * scale + loc
+            while f(lo) > 0:
+                lo -= abs(lo - loc) + 1.0
+            while f(hi) < 0:
+                hi += abs(hi - loc) + 1.0
             result[i] = brentq(f, lo, hi, xtol=1e-10)
         return result
 

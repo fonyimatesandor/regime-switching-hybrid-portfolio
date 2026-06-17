@@ -119,9 +119,7 @@ class StaticStudentTSimulator(BaseMonteCarloSimulator):
 
         Z_sim = multivariate_t.rvs(
             shape=safe_corr, df=self.copula_df, size=(num_simulations, num_steps - 1)
-        )
-        if num_simulations == 1:
-            Z_sim = Z_sim[np.newaxis, :, :]
+        ).reshape(num_simulations, num_steps - 1, d)
 
         U_sim = t.cdf(Z_sim, df=self.copula_df)
         U_sim = np.clip(U_sim, 1e-6, 1.0 - 1e-6)

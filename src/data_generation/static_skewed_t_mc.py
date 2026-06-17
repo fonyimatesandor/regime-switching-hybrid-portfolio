@@ -119,9 +119,7 @@ class StaticSkewedTSimulator(BaseMonteCarloSimulator):
 
         Z_sim = multivariate_t.rvs(
             shape=safe_corr, df=self.copula_df, size=(num_simulations, num_steps - 1)
-        )
-        if num_simulations == 1:
-            Z_sim = Z_sim[np.newaxis, :, :]
+        ).reshape(num_simulations, num_steps - 1, d)
 
         U_sim = t.cdf(Z_sim, df=self.copula_df)
         joint_sim_log_returns = np.zeros_like(U_sim)
