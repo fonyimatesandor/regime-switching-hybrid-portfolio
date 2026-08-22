@@ -1,7 +1,12 @@
 import pickle as pkl
 import json
 
-from scripts.mc_backtest_setup import config, simulators, asset_prices, models_to_test
+from scripts.mc_backtest_setup import (
+    config,
+    simulators,
+    asset_prices_comparison,
+    models_to_test,
+)
 
 simulator_name = "static_student_t_hmm"
 
@@ -17,7 +22,7 @@ for model in models_to_test:
         f"Running MC backtest for model {model['name']} on simulator {simulator_name}..."
     )
 
-    testing_model = model["class"](assets=asset_prices, **model["kwargs"])
+    testing_model = model["class"](assets=asset_prices_comparison, **model["kwargs"])
     testing_model.run_backtest()
 
     mc_results = testing_model.run_MC_backtest(

@@ -7,7 +7,9 @@ from src.utils.config_loader import load_config
 
 config = load_config("config.yaml")
 
-asset_data = pd.read_csv("data/raw/stock_data_05_25.csv", index_col=0, parse_dates=True)
+asset_data = pd.read_csv(
+    "data/raw/stock_data_learning.csv", index_col=0, parse_dates=True
+)
 
 feature_extractor = HMMFeatureExtractor(
     vol_window=config["hmm_model"]["vol_window"],

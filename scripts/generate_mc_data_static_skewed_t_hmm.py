@@ -1,19 +1,26 @@
 import pickle as pkl
 
-from scripts.mc_backtest_setup import config, simulators, asset_prices, factors
+from scripts.mc_backtest_setup import (
+    config,
+    simulators,
+    asset_prices_learning,
+    asset_prices_comparison,
+    factors_learning,
+    factors_comparison,
+)
 
 simulator_name = "static_skewed_t_hmm"
 
 simulator = simulators[simulator_name]
 
 print(f"Fitting {simulator_name} simulator...")
-simulator.fit(asset_prices=asset_prices, factors=factors)
+simulator.fit(asset_prices=asset_prices_learning, factors=factors_learning)
 
 print(f"Simulating paths with {simulator_name} simulator...")
 simulated_prices, simulated_factors = simulator.simulate(
-    starting_prices=asset_prices.iloc[-1],
+    starting_prices=asset_prices_comparison.iloc[-1].values,
     num_simulations=config["monte_carlo"]["num_precomputed_paths"],
-    num_steps=len(asset_prices),
+    num_steps=len(asset_prices_comparison),
 )
 
 output = {

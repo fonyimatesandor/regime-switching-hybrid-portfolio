@@ -54,30 +54,48 @@ for name, sim in list(simulators.items()):
     simulators[name + "_hmm"] = hmm_sim
 
 
-asset_prices = pd.read_csv(
-    "./data/raw/stock_data_05_25.csv", index_col=0, parse_dates=True
+asset_prices_learning = pd.read_csv(
+    "./data/raw/stock_data_learning.csv", index_col=0, parse_dates=True
 )
 
-factors = pd.read_csv("./data/raw/FF_factor_data.csv", index_col=0, parse_dates=True)
+factors_learning = pd.read_csv(
+    "./data/raw/FF_factor_data_learning.csv", index_col=0, parse_dates=True
+)
 
-index_data = pd.read_csv(
-    "./data/raw/index_data_05_25.csv", index_col=0, parse_dates=True
+index_data_learning = pd.read_csv(
+    "./data/raw/index_data_learning.csv", index_col=0, parse_dates=True
 )
-market_cap_data = pd.read_csv(
-    "./data/raw/market_cap_05_25.csv", index_col=0, parse_dates=True
+market_cap_data_learning = pd.read_csv(
+    "./data/raw/market_cap_learning.csv", index_col=0, parse_dates=True
 )
+
+asset_prices_comparison = pd.read_csv(
+    "./data/raw/stock_data_comparison.csv", index_col=0, parse_dates=True
+)
+
+factors_comparison = pd.read_csv(
+    "./data/raw/FF_factor_data_comparison.csv", index_col=0, parse_dates=True
+)
+
+index_data_comparison = pd.read_csv(
+    "./data/raw/index_data_comparison.csv", index_col=0, parse_dates=True
+)
+market_cap_data_comparison = pd.read_csv(
+    "./data/raw/market_cap_comparison.csv", index_col=0, parse_dates=True
+)
+
 
 covariance_estimators = {
     "historical": HistoricalCovarianceEstimator(),
     "ledoit_wolf": LedoitWolfCovarianceEstimator(),
     "FF_3": FactorCovarianceEstimator(
-        factors[["RF", "Mkt-RF", "SMB", "HML"]].values / 100.0
+        factors_comparison[["RF", "Mkt-RF", "SMB", "HML"]].values / 100.0
     ),
     "Carhart_4": FactorCovarianceEstimator(
-        factors[["RF", "Mkt-RF", "SMB", "HML", "Mom"]].values / 100.0
+        factors_comparison[["RF", "Mkt-RF", "SMB", "HML", "Mom"]].values / 100.0
     ),
     "FF_5": FactorCovarianceEstimator(
-        factors[["RF", "Mkt-RF", "SMB", "HML", "RMW", "CMA"]].values / 100.0
+        factors_comparison[["RF", "Mkt-RF", "SMB", "HML", "RMW", "CMA"]].values / 100.0
     ),
     "ewma": EWMACovarianceEstimator(),
 }
@@ -85,18 +103,18 @@ covariance_estimators = {
 return_estimators = {
     "historical": HistoricalReturnEstimator(),
     "FF_3": FactorReturnEstimator(
-        factors[["RF", "Mkt-RF", "SMB", "HML"]].values / 100.0
+        factors_comparison[["RF", "Mkt-RF", "SMB", "HML"]].values / 100.0
     ),
     "Carhart_4": FactorReturnEstimator(
-        factors[["RF", "Mkt-RF", "SMB", "HML", "Mom"]].values / 100.0
+        factors_comparison[["RF", "Mkt-RF", "SMB", "HML", "Mom"]].values / 100.0
     ),
     "FF_5": FactorReturnEstimator(
-        factors[["RF", "Mkt-RF", "SMB", "HML", "RMW", "CMA"]].values / 100.0
+        factors_comparison[["RF", "Mkt-RF", "SMB", "HML", "RMW", "CMA"]].values / 100.0
     ),
     "equilibrium": EquilibriumReturnEstimator(
-        market_index_prices=index_data["SPY"],
-        risk_free_rates=factors["RF"] / 100.0,
-        market_caps=market_cap_data.values,
+        market_index_prices=index_data_comparison["SPY"],
+        risk_free_rates=factors_comparison["RF"] / 100.0,
+        market_caps=market_cap_data_comparison.values,
     ),
 }
 
