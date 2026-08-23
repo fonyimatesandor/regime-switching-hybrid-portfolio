@@ -1,6 +1,7 @@
 import numpy as np
 import pandas as pd
 from sklearn.preprocessing import StandardScaler
+from numpy.lib.stride_tricks import sliding_window_view
 
 
 class HMMFeatureExtractor:
@@ -126,26 +127,39 @@ class HMMFeatureExtractor:
 
     def _compute_raw(self, price_df: pd.DataFrame) -> np.ndarray:
         """Compute the four raw (un-standardised) features and drop NaN rows."""
-        portfolio = price_df.mean(axis=1)
-        log_ret = np.log(portfolio / portfolio.shift(1))
+        prices = price_df.values
+        portfolio = prices.mean(axis=1)
 
-        volatility = log_ret.rolling(window=self.vol_window).std()
+        log_ret = np.full_like(portfolio, np.nan)
+        log_ret[1:] = np.log(portfolio[1:] / portfolio[:-1])
 
-        avg_corr = self._rolling_avg_pairwise_correlation(price_df)
+        W_vol = self.vol_window
+        if len(log_ret) >= W_vol:
+            stride_vol = sliding_window_view(log_ret, window_shape=W_vol)
+            vol_std = stride_vol.std(axis=1, ddof=1)
+            volatility = np.concatenate([np.full(W_vol - 1, np.nan), vol_std])
+        else:
+            volatility = np.full_like(log_ret, np.nan)
 
-        rolling_peak = portfolio.rolling(window=self.draw_window, min_periods=1).max()
+        avg_corr = self._rolling_avg_pairwise_correlation(price_df).values
+
+        W_draw = self.draw_window
+        if len(portfolio) >= W_draw:
+            stride_draw = sliding_window_view(portfolio, window_shape=W_draw)
+            roll_max_full = stride_draw.max(axis=1)
+
+            initial_max = np.maximum.accumulate(portfolio[: W_draw - 1])
+            rolling_peak = np.concatenate([initial_max, roll_max_full])
+        else:
+            rolling_peak = np.maximum.accumulate(portfolio)
+
         drawdown = (portfolio - rolling_peak) / rolling_peak
 
-        features = pd.DataFrame(
-            {
-                "return": log_ret,
-                "volatility": volatility,
-                "correlation": avg_corr,
-                "drawdown": drawdown,
-            }
-        )
+        features = np.column_stack([log_ret, volatility, avg_corr, drawdown])
 
-        return features.dropna().values
+        valid_rows = ~np.isnan(features).any(axis=1)
+
+        return features[valid_rows]
 
     def _rolling_avg_pairwise_correlation(self, price_df: pd.DataFrame) -> pd.Series:
         """
@@ -156,14 +170,37 @@ class HMMFeatureExtractor:
         because the diagonal contributes N*1 = N and there are N*(N-1)
         off-diagonal pairs.
         """
+
         N = price_df.shape[1]
+
         if N < 2:
             return pd.Series(0.0, index=price_df.index)
 
-        log_rets = np.log(price_df / price_df.shift(1))
-        corr_mat = log_rets.rolling(window=self.corr_window).corr()
+        W = self.corr_window
+        T = len(price_df)
 
-        date_total = corr_mat.sum(axis=1).groupby(level=0).sum()
+        if T <= W:
+            return pd.Series(np.nan, index=price_df.index)
+
+        log_rets = np.log(price_df / price_df.shift(1)).values[1:]
+
+        windows = sliding_window_view(log_rets, window_shape=W, axis=0).transpose(
+            0, 2, 1
+        )
+
+        means = windows.mean(axis=1, keepdims=True)
+        centered = windows - means
+
+        stds = centered.std(axis=1, ddof=1, keepdims=True)
+        stds[stds == 0] = 1.0
+        z = centered / stds
+
+        z_sum_assets = z.sum(axis=2)
+        date_total = (z_sum_assets**2).sum(axis=1) / (W - 1)
+
         avg_corr = (date_total - N) / (N * (N - 1))
 
-        return avg_corr
+        pad = np.full(W, np.nan)
+        avg_corr_full = np.concatenate([pad, avg_corr])
+
+        return pd.Series(avg_corr_full, index=price_df.index)
