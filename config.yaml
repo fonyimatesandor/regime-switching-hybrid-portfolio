@@ -46,7 +46,7 @@ frictions:
   commission_rate: 0.0002
 
 hmm_model:
-  n_components: 4
+  n_components: 2
   n_iter: 1000
   df_bounds: [2.01, 50]
   vol_window: 21
