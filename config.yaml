@@ -52,3 +52,4 @@ hmm_model:
   vol_window: 21
   corr_window: 21
   draw_window: 252
+  regime_threshold: 0.6
