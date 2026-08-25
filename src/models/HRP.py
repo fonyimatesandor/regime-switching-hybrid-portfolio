@@ -51,6 +51,9 @@ class HierarchicalRiskParityPortfolio(BaseStrategy):
         period_start = max(0, period - self.lookback_period)
         price_window = self.prices[period_start:period]
 
+        if price_window.shape[1] == 1:
+            return np.array([1.0])
+
         cov_matrix = self.covariance_estimator.estimate(
             price_window, period, self.lookback_period
         )
