@@ -31,3 +31,6 @@ print("HMM model trained successfully.")
 
 with open("data/hmm_model/hmm_model.pkl", "wb") as f:
     pkl.dump(hmm_model, f)
+
+with open("data/hmm_model/hmm_feature_extractor.pkl", "wb") as f:
+    pkl.dump(feature_extractor, f)

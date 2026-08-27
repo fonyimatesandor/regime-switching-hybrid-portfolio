@@ -64,6 +64,13 @@ def build_bounds_and_constraints(cfg: dict) -> tuple[list, list, dict]:
                     "type": "ineq",
                     "fun": lambda w, m=max_w, i=sector_idx: m - w[i].sum(),
                     "jac": lambda w, j=jac_max: j,
+                    "metadata": {
+                        "constraint_kind": "max_weight",
+                        "limit": max_w,
+                        "asset_names": [tickers[i] for i in idx_list],
+                        "global_index": sector_idx.tolist(),
+                        "global_jac": jac_max.tolist(),
+                    },
                 }
             )
 
@@ -77,6 +84,13 @@ def build_bounds_and_constraints(cfg: dict) -> tuple[list, list, dict]:
                     "type": "ineq",
                     "fun": lambda w, m=min_w, i=sector_idx: w[i].sum() - m,
                     "jac": lambda w, j=jac_min: j,
+                    "metadata": {
+                        "constraint_kind": "min_weight",
+                        "limit": min_w,
+                        "asset_names": [tickers[i] for i in idx_list],
+                        "global_index": sector_idx.tolist(),
+                        "global_jac": jac_min.tolist(),
+                    },
                 }
             )
 
