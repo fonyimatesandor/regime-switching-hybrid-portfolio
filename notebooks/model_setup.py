@@ -216,3 +216,110 @@ for cov_name, cov_estimator in covariance_estimators.items():
     models_to_test_frictionless.append(
         {"name": model_name, "class": RiskParityPortfolio, "kwargs": RPModel_kwargs}
     )
+
+
+models_to_test = []
+
+EWModel_kwargs = {
+    "initial_capital": config["backtest"]["initial_capital"],
+    "rebalance_frequency": config["backtest"]["rebalance_period"],
+    "integer_sizing": True,
+    "use_costs": True,
+    "commission_rate": config["frictions"]["commission_rate"],
+    "slippage_rate": config["frictions"]["slippage"],
+    "allocation_bounds": bounds,
+    "static_constraints": constraints,
+    "dynamic_constraints": dynamic_constraints,
+}
+
+models_to_test.append(
+    {"name": "EW", "class": EqualWeightPortfolio, "kwargs": EWModel_kwargs}
+)
+
+IVPModel_kwargs = {
+    "initial_capital": config["backtest"]["initial_capital"],
+    "rebalance_frequency": config["backtest"]["rebalance_period"],
+    "integer_sizing": True,
+    "use_costs": True,
+    "commission_rate": config["frictions"]["commission_rate"],
+    "slippage_rate": config["frictions"]["slippage"],
+    "allocation_bounds": bounds,
+    "static_constraints": constraints,
+    "dynamic_constraints": dynamic_constraints,
+    "lookback_period": config["backtest"]["lookback_window"],
+}
+
+models_to_test.append(
+    {"name": "IVP", "class": InverseVariancePortfolio, "kwargs": IVPModel_kwargs}
+)
+
+MVO_objectives = ["min_variance", "max_return", "max_sharpe"]
+
+for cov_name, cov_estimator in covariance_estimators.items():
+    for ret_name, ret_estimator in return_estimators.items():
+        for obj in MVO_objectives:
+            model_name = f"MVO_{obj}_{cov_name}_cov_{ret_name}_ret"
+            MVOModel_kwargs = {
+                "initial_capital": config["backtest"]["initial_capital"],
+                "rebalance_frequency": config["backtest"]["rebalance_period"],
+                "integer_sizing": True,
+                "use_costs": True,
+                "commission_rate": config["frictions"]["commission_rate"],
+                "slippage_rate": config["frictions"]["slippage"],
+                "allocation_bounds": bounds,
+                "static_constraints": constraints,
+                "dynamic_constraints": dynamic_constraints,
+                "lookback_period": config["backtest"]["lookback_window"],
+                "covariance_estimator": cov_estimator,
+                "return_estimator": ret_estimator,
+                "objective": obj,
+            }
+            models_to_test.append(
+                {
+                    "name": model_name,
+                    "class": MeanVariancePortfolio,
+                    "kwargs": MVOModel_kwargs,
+                }
+            )
+
+for cov_name, cov_estimator in covariance_estimators.items():
+    model_name = f"HRP_{cov_name}_cov"
+    HRPModel_kwargs = {
+        "initial_capital": config["backtest"]["initial_capital"],
+        "rebalance_frequency": config["backtest"]["rebalance_period"],
+        "integer_sizing": True,
+        "use_costs": True,
+        "commission_rate": config["frictions"]["commission_rate"],
+        "slippage_rate": config["frictions"]["slippage"],
+        "allocation_bounds": bounds,
+        "static_constraints": constraints,
+        "dynamic_constraints": dynamic_constraints,
+        "lookback_period": config["backtest"]["lookback_window"],
+        "covariance_estimator": cov_estimator,
+    }
+    models_to_test.append(
+        {
+            "name": model_name,
+            "class": HierarchicalRiskParityPortfolio,
+            "kwargs": HRPModel_kwargs,
+        }
+    )
+
+for cov_name, cov_estimator in covariance_estimators.items():
+    model_name = f"RP_{cov_name}_cov"
+    RPModel_kwargs = {
+        "initial_capital": config["backtest"]["initial_capital"],
+        "rebalance_frequency": config["backtest"]["rebalance_period"],
+        "integer_sizing": True,
+        "use_costs": True,
+        "commission_rate": config["frictions"]["commission_rate"],
+        "slippage_rate": config["frictions"]["slippage"],
+        "allocation_bounds": bounds,
+        "static_constraints": constraints,
+        "dynamic_constraints": dynamic_constraints,
+        "lookback_period": config["backtest"]["lookback_window"],
+        "covariance_estimator": cov_estimator,
+    }
+    models_to_test.append(
+        {"name": model_name, "class": RiskParityPortfolio, "kwargs": RPModel_kwargs}
+    )
