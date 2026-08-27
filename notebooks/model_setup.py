@@ -323,3 +323,120 @@ for cov_name, cov_estimator in covariance_estimators.items():
     models_to_test.append(
         {"name": model_name, "class": RiskParityPortfolio, "kwargs": RPModel_kwargs}
     )
+
+
+rHMM_MVO_models = []
+
+for MVO_cov_name, MVO_cov_estimator in covariance_estimators.items():
+    if MVO_cov_name in ["Carhart_4", "FF_3", "ewma", "historical", "FF_5"]:
+        for HRP_cov_name, HRP_cov_estimator in covariance_estimators.items():
+            if HRP_cov_name in ["historical", "ledoit_wolf"]:
+                model_name = f"rHMM_MVO_{MVO_cov_name}_MVO_cov_historical_MVO_ret_{HRP_cov_name}_HRP_cov"
+                rHMM_MVO_kwargs = {
+                    "initial_capital": config["backtest"]["initial_capital"],
+                    "rebalance_frequency": config["backtest"]["rebalance_period"],
+                    "integer_sizing": True,
+                    "use_costs": True,
+                    "commission_rate": config["frictions"]["commission_rate"],
+                    "slippage_rate": config["frictions"]["slippage"],
+                    "allocation_bounds": bounds,
+                    "static_constraints": constraints,
+                    "dynamic_constraints": dynamic_constraints,
+                    "MVO_lookback_period": config["backtest"]["lookback_window"],
+                    "MVO_covariance_estimator": MVO_cov_estimator,
+                    "MVO_return_estimator": HistoricalReturnEstimator(),
+                    "MVO_objective": "max_sharpe",
+                    "HRP_lookback_period": config["backtest"]["lookback_window"],
+                    "HRP_covariance_estimator": HRP_cov_estimator,
+                    "regime_threshold": config["hmm_model"]["regime_threshold"],
+                    "hmm_model": hmm_model,
+                    "hmm_feature_extractor": feature_extractor,
+                }
+                rHMM_MVO_models.append(
+                    {
+                        "name": model_name,
+                        "class": rHMM_MVO_HRP,
+                        "kwargs": rHMM_MVO_kwargs,
+                    }
+                )
+
+rHMM_MVO_comparison_models = []
+
+rHMM_MVO_comparison_models.append(
+    {"name": "EW", "class": EqualWeightPortfolio, "kwargs": EWModel_kwargs}
+)
+
+rHMM_MVO_comparison_models.append(
+    {"name": "IVP", "class": InverseVariancePortfolio, "kwargs": IVPModel_kwargs}
+)
+
+for cov_name, cov_estimator in covariance_estimators.items():
+    if cov_name in ["Carhart_4", "FF_3", "ewma", "historical", "FF_5"]:
+        model_name = f"MVO_max_sharpe_{cov_name}_cov_historical_ret"
+        MVOModel_kwargs = {
+            "initial_capital": config["backtest"]["initial_capital"],
+            "rebalance_frequency": config["backtest"]["rebalance_period"],
+            "integer_sizing": True,
+            "use_costs": True,
+            "commission_rate": config["frictions"]["commission_rate"],
+            "slippage_rate": config["frictions"]["slippage"],
+            "allocation_bounds": bounds,
+            "static_constraints": constraints,
+            "dynamic_constraints": dynamic_constraints,
+            "lookback_period": config["backtest"]["lookback_window"],
+            "covariance_estimator": cov_estimator,
+            "return_estimator": HistoricalReturnEstimator(),
+            "objective": "max_sharpe",
+        }
+        rHMM_MVO_comparison_models.append(
+            {
+                "name": model_name,
+                "class": MeanVariancePortfolio,
+                "kwargs": MVOModel_kwargs,
+            }
+        )
+
+
+for cov_name, cov_estimator in covariance_estimators.items():
+    if cov_name in ["historical", "ledoit_wolf"]:
+        model_name = f"HRP_{cov_name}_cov"
+        HRPModel_kwargs = {
+            "initial_capital": config["backtest"]["initial_capital"],
+            "rebalance_frequency": config["backtest"]["rebalance_period"],
+            "integer_sizing": True,
+            "use_costs": True,
+            "commission_rate": config["frictions"]["commission_rate"],
+            "slippage_rate": config["frictions"]["slippage"],
+            "allocation_bounds": bounds,
+            "static_constraints": constraints,
+            "dynamic_constraints": dynamic_constraints,
+            "lookback_period": config["backtest"]["lookback_window"],
+            "covariance_estimator": cov_estimator,
+        }
+        rHMM_MVO_comparison_models.append(
+            {
+                "name": model_name,
+                "class": HierarchicalRiskParityPortfolio,
+                "kwargs": HRPModel_kwargs,
+            }
+        )
+
+for cov_name, cov_estimator in covariance_estimators.items():
+    if cov_name in ["FF_3", "ledoit_wolf"]:
+        model_name = f"RP_{cov_name}_cov"
+        RPModel_kwargs = {
+            "initial_capital": config["backtest"]["initial_capital"],
+            "rebalance_frequency": config["backtest"]["rebalance_period"],
+            "integer_sizing": True,
+            "use_costs": True,
+            "commission_rate": config["frictions"]["commission_rate"],
+            "slippage_rate": config["frictions"]["slippage"],
+            "allocation_bounds": bounds,
+            "static_constraints": constraints,
+            "dynamic_constraints": dynamic_constraints,
+            "lookback_period": config["backtest"]["lookback_window"],
+            "covariance_estimator": cov_estimator,
+        }
+        rHMM_MVO_comparison_models.append(
+            {"name": model_name, "class": RiskParityPortfolio, "kwargs": RPModel_kwargs}
+        )
