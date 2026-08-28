@@ -362,13 +362,13 @@ for cov_name, cov_estimator in covariance_estimators.items():
         )
 
 
-choosen_classical_models = []
+choosen_classical_models_oos = []
 
-choosen_classical_models.append(
+choosen_classical_models_oos.append(
     {"name": "EW", "class": EqualWeightPortfolio, "kwargs": EWModel_kwargs}
 )
 
-choosen_classical_models.append(
+choosen_classical_models_oos.append(
     {"name": "IVP", "class": InverseVariancePortfolio, "kwargs": IVPModel_kwargs}
 )
 
@@ -390,7 +390,7 @@ for cov_name, cov_estimator in covariance_estimators.items():
             "return_estimator": HistoricalReturnEstimator(),
             "objective": "max_sharpe",
         }
-        choosen_classical_models.append(
+        choosen_classical_models_oos.append(
             {
                 "name": model_name,
                 "class": MeanVariancePortfolio,
@@ -415,7 +415,7 @@ for cov_name, cov_estimator in covariance_estimators.items():
             "lookback_period": config["backtest"]["lookback_window"],
             "covariance_estimator": cov_estimator,
         }
-        choosen_classical_models.append(
+        choosen_classical_models_oos.append(
             {
                 "name": model_name,
                 "class": HierarchicalRiskParityPortfolio,
@@ -439,7 +439,7 @@ for cov_name, cov_estimator in covariance_estimators.items():
             "lookback_period": config["backtest"]["lookback_window"],
             "covariance_estimator": cov_estimator,
         }
-        choosen_classical_models.append(
+        choosen_classical_models_oos.append(
             {"name": model_name, "class": RiskParityPortfolio, "kwargs": RPModel_kwargs}
         )
 
@@ -464,7 +464,7 @@ rHMM_MVO_kwargs = {
 }
 
 
-choosen_classical_models.append(
+choosen_classical_models_oos.append(
     {
         "name": "rHMM_MVO_ewma_MVO_cov_historical_MVO_ret_ledoit_wolf_HRP_cov",
         "class": rHMM_MVO_HRP,
@@ -476,7 +476,7 @@ choosen_classical_models.append(
     }
 )
 
-choosen_classical_models.append(
+choosen_classical_models_oos.append(
     {
         "name": "rHMM_MVO_historical_MVO_cov_historical_MVO_ret_historical_HRP_cov",
         "class": rHMM_MVO_HRP,
@@ -488,7 +488,7 @@ choosen_classical_models.append(
     }
 )
 
-choosen_classical_models.append(
+choosen_classical_models_oos.append(
     {
         "name": "rHMM_MVO_FF_3_MVO_cov_historical_MVO_ret_ledoit_wolf_HRP_cov",
         "class": rHMM_MVO_HRP,

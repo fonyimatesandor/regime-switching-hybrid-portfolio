@@ -5,7 +5,7 @@ from scripts.mc_backtest_setup import (
     config,
     simulators,
     asset_prices_testing,
-    choosen_classical_models,
+    choosen_classical_models_oos,
 )
 
 simulator_name = "static_skewed_t_oos"
@@ -16,7 +16,7 @@ with open(f"data/synthetic/{simulator_name}_simulated_data.pkl", "rb") as f:
 simulated_prices = simulated_paths["simulated_prices"]
 simulated_factors = simulated_paths["simulated_factors"]
 
-for model in choosen_classical_models:
+for model in choosen_classical_models_oos:
 
     print(
         f"Running MC backtest for model {model['name']} on simulator {simulator_name}..."
@@ -41,7 +41,7 @@ for model in choosen_classical_models:
 
 json.dump(
     {
-        "models_tested": [model["name"] for model in choosen_classical_models],
+        "models_tested": [model["name"] for model in choosen_classical_models_oos],
         "simulators_tested": [simulator_name],
         "config": config,
     },
