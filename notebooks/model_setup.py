@@ -76,6 +76,21 @@ market_cap_data_comparison = pd.read_csv(
     "../data/raw/market_cap_comparison.csv", index_col=0, parse_dates=True
 )
 
+asset_prices_testing = pd.read_csv(
+    "../data/raw/stock_data_testing.csv", index_col=0, parse_dates=True
+)
+
+factors_testing = pd.read_csv(
+    "../data/raw/FF_factor_data_testing.csv", index_col=0, parse_dates=True
+)
+
+index_data_testing = pd.read_csv(
+    "../data/raw/index_data_testing.csv", index_col=0, parse_dates=True
+)
+market_cap_data_testing = pd.read_csv(
+    "../data/raw/market_cap_testing.csv", index_col=0, parse_dates=True
+)
+
 with open("../data/hmm_model/hmm_model.pkl", "rb") as f:
     hmm_model = pkl.load(f)
 
@@ -96,6 +111,22 @@ covariance_estimators = {
     ),
     "ewma": EWMACovarianceEstimator(),
 }
+
+covariance_estimators_oos = {
+    "historical": HistoricalCovarianceEstimator(),
+    "ledoit_wolf": LedoitWolfCovarianceEstimator(),
+    "FF_3": FactorCovarianceEstimator(
+        factors_testing[["RF", "Mkt-RF", "SMB", "HML"]].values / 100.0
+    ),
+    "Carhart_4": FactorCovarianceEstimator(
+        factors_testing[["RF", "Mkt-RF", "SMB", "HML", "Mom"]].values / 100.0
+    ),
+    "FF_5": FactorCovarianceEstimator(
+        factors_testing[["RF", "Mkt-RF", "SMB", "HML", "RMW", "CMA"]].values / 100.0
+    ),
+    "ewma": EWMACovarianceEstimator(),
+}
+
 
 return_estimators = {
     "historical": HistoricalReturnEstimator(),
@@ -442,17 +473,17 @@ for cov_name, cov_estimator in covariance_estimators.items():
         )
 
 
-choosen_classical_models = []
+choosen_classical_models_oos = []
 
-choosen_classical_models.append(
+choosen_classical_models_oos.append(
     {"name": "EW", "class": EqualWeightPortfolio, "kwargs": EWModel_kwargs}
 )
 
-choosen_classical_models.append(
+choosen_classical_models_oos.append(
     {"name": "IVP", "class": InverseVariancePortfolio, "kwargs": IVPModel_kwargs}
 )
 
-for cov_name, cov_estimator in covariance_estimators.items():
+for cov_name, cov_estimator in covariance_estimators_oos.items():
     if cov_name in ["Carhart_4", "historical", "FF_5"]:
         model_name = f"MVO_max_sharpe_{cov_name}_cov_historical_ret"
         MVOModel_kwargs = {
@@ -470,7 +501,7 @@ for cov_name, cov_estimator in covariance_estimators.items():
             "return_estimator": HistoricalReturnEstimator(),
             "objective": "max_sharpe",
         }
-        choosen_classical_models.append(
+        choosen_classical_models_oos.append(
             {
                 "name": model_name,
                 "class": MeanVariancePortfolio,
@@ -479,7 +510,7 @@ for cov_name, cov_estimator in covariance_estimators.items():
         )
 
 
-for cov_name, cov_estimator in covariance_estimators.items():
+for cov_name, cov_estimator in covariance_estimators_oos.items():
     if cov_name in ["historical", "ledoit_wolf"]:
         model_name = f"HRP_{cov_name}_cov"
         HRPModel_kwargs = {
@@ -495,7 +526,7 @@ for cov_name, cov_estimator in covariance_estimators.items():
             "lookback_period": config["backtest"]["lookback_window"],
             "covariance_estimator": cov_estimator,
         }
-        choosen_classical_models.append(
+        choosen_classical_models_oos.append(
             {
                 "name": model_name,
                 "class": HierarchicalRiskParityPortfolio,
@@ -503,7 +534,7 @@ for cov_name, cov_estimator in covariance_estimators.items():
             }
         )
 
-for cov_name, cov_estimator in covariance_estimators.items():
+for cov_name, cov_estimator in covariance_estimators_oos.items():
     if cov_name in ["FF_3", "ledoit_wolf"]:
         model_name = f"RP_{cov_name}_cov"
         RPModel_kwargs = {
@@ -519,7 +550,7 @@ for cov_name, cov_estimator in covariance_estimators.items():
             "lookback_period": config["backtest"]["lookback_window"],
             "covariance_estimator": cov_estimator,
         }
-        choosen_classical_models.append(
+        choosen_classical_models_oos.append(
             {"name": model_name, "class": RiskParityPortfolio, "kwargs": RPModel_kwargs}
         )
 
@@ -544,38 +575,38 @@ rHMM_MVO_kwargs = {
 }
 
 
-choosen_classical_models.append(
+choosen_classical_models_oos.append(
     {
         "name": "rHMM_MVO_ewma_MVO_cov_historical_MVO_ret_ledoit_wolf_HRP_cov",
         "class": rHMM_MVO_HRP,
         "kwargs": {
             **rHMM_MVO_kwargs,
-            "MVO_covariance_estimator": covariance_estimators["ewma"],
-            "HRP_covariance_estimator": covariance_estimators["ledoit_wolf"],
+            "MVO_covariance_estimator": covariance_estimators_oos["ewma"],
+            "HRP_covariance_estimator": covariance_estimators_oos["ledoit_wolf"],
         },
     }
 )
 
-choosen_classical_models.append(
+choosen_classical_models_oos.append(
     {
         "name": "rHMM_MVO_historical_MVO_cov_historical_MVO_ret_historical_HRP_cov",
         "class": rHMM_MVO_HRP,
         "kwargs": {
             **rHMM_MVO_kwargs,
-            "MVO_covariance_estimator": covariance_estimators["historical"],
-            "HRP_covariance_estimator": covariance_estimators["historical"],
+            "MVO_covariance_estimator": covariance_estimators_oos["historical"],
+            "HRP_covariance_estimator": covariance_estimators_oos["historical"],
         },
     }
 )
 
-choosen_classical_models.append(
+choosen_classical_models_oos.append(
     {
         "name": "rHMM_MVO_FF_3_MVO_cov_historical_MVO_ret_ledoit_wolf_HRP_cov",
         "class": rHMM_MVO_HRP,
         "kwargs": {
             **rHMM_MVO_kwargs,
-            "MVO_covariance_estimator": covariance_estimators["FF_3"],
-            "HRP_covariance_estimator": covariance_estimators["ledoit_wolf"],
+            "MVO_covariance_estimator": covariance_estimators_oos["FF_3"],
+            "HRP_covariance_estimator": covariance_estimators_oos["ledoit_wolf"],
         },
     }
 )
