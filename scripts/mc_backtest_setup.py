@@ -85,6 +85,27 @@ market_cap_data_comparison = pd.read_csv(
     "./data/raw/market_cap_comparison.csv", index_col=0, parse_dates=True
 )
 
+asset_prices_testing = pd.read_csv(
+    "./data/raw/stock_data_testing.csv", index_col=0, parse_dates=True
+)
+
+factors_testing = pd.read_csv(
+    "./data/raw/FF_factor_data_testing.csv", index_col=0, parse_dates=True
+)
+
+index_data_testing = pd.read_csv(
+    "./data/raw/index_data_testing.csv", index_col=0, parse_dates=True
+)
+market_cap_data_testing = pd.read_csv(
+    "./data/raw/market_cap_testing.csv", index_col=0, parse_dates=True
+)
+
+with open("./data/hmm_model/hmm_model_oos.pkl", "rb") as f:
+    hmm_model_oos = pkl.load(f)
+
+with open("./data/hmm_model/hmm_feature_extractor_oos.pkl", "rb") as f:
+    feature_extractor_oos = pkl.load(f)
+
 covariance_estimators = {
     "historical": HistoricalCovarianceEstimator(),
     "ledoit_wolf": LedoitWolfCovarianceEstimator(),
@@ -438,6 +459,8 @@ rHMM_MVO_kwargs = {
     "MVO_objective": "max_sharpe",
     "HRP_lookback_period": config["backtest"]["lookback_window"],
     "regime_threshold": config["hmm_model"]["regime_threshold"],
+    "hmm_model": hmm_model_oos,
+    "hmm_feature_extractor": feature_extractor_oos,
 }
 
 
