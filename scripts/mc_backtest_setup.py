@@ -26,7 +26,6 @@ from src.models.IVP import InverseVariancePortfolio
 from src.models.MVO import MeanVariancePortfolio
 from src.models.HRP import HierarchicalRiskParityPortfolio
 from src.models.RP import RiskParityPortfolio
-
 from src.models.rHMM_MVO_HRP import rHMM_MVO_HRP
 
 from src.utils.config_loader import load_config, build_bounds_and_constraints
@@ -85,7 +84,6 @@ index_data_comparison = pd.read_csv(
 market_cap_data_comparison = pd.read_csv(
     "./data/raw/market_cap_comparison.csv", index_col=0, parse_dates=True
 )
-
 
 covariance_estimators = {
     "historical": HistoricalCovarianceEstimator(),
@@ -440,8 +438,6 @@ rHMM_MVO_kwargs = {
     "MVO_objective": "max_sharpe",
     "HRP_lookback_period": config["backtest"]["lookback_window"],
     "regime_threshold": config["hmm_model"]["regime_threshold"],
-    "hmm_model": hmm_model,
-    "hmm_feature_extractor": feature_extractor,
 }
 
 
