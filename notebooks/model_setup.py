@@ -97,6 +97,12 @@ with open("../data/hmm_model/hmm_model.pkl", "rb") as f:
 with open("../data/hmm_model/hmm_feature_extractor.pkl", "rb") as f:
     feature_extractor = pkl.load(f)
 
+with open("../data/hmm_model/hmm_model_oos.pkl", "rb") as f:
+    hmm_model_oos = pkl.load(f)
+
+with open("../data/hmm_model/hmm_feature_extractor_oos.pkl", "rb") as f:
+    feature_extractor_oos = pkl.load(f)
+
 covariance_estimators = {
     "historical": HistoricalCovarianceEstimator(),
     "ledoit_wolf": LedoitWolfCovarianceEstimator(),
@@ -570,8 +576,8 @@ rHMM_MVO_kwargs = {
     "MVO_objective": "max_sharpe",
     "HRP_lookback_period": config["backtest"]["lookback_window"],
     "regime_threshold": config["hmm_model"]["regime_threshold"],
-    "hmm_model": hmm_model,
-    "hmm_feature_extractor": feature_extractor,
+    "hmm_model": hmm_model_oos,
+    "hmm_feature_extractor": feature_extractor_oos,
 }
 
 
