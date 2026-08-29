@@ -108,7 +108,7 @@ class rHMM(BaseStrategy):
         self._features_filled_until = period
 
     def _compute_current_features(
-        self, period: int, feature_start: int | None = None
+        self, period: int, feature_start: int
     ) -> np.ndarray:
         """Build the newly available feature rows ending at ``period``."""
         if period < 0:
@@ -119,7 +119,7 @@ class rHMM(BaseStrategy):
             self.hmm_feature_extractor.corr_window,
             self.hmm_feature_extractor.draw_window,
         )
-        window_start = max(0, period - max_window + 1)
+        window_start = max(0, feature_start - max_window + 1)
         price_window = self.assets.iloc[window_start : period + 1]
 
         if getattr(self.hmm_feature_extractor, "scaler_", None) is None:
