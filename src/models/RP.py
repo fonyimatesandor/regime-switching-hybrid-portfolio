@@ -61,8 +61,11 @@ class RiskParityPortfolio(BaseStrategy):
 
         cov_matrix = (cov_matrix + cov_matrix.T) / 2.0
         min_eig = np.min(np.linalg.eigvalsh(cov_matrix))
-        if min_eig < 0:
-            cov_matrix -= 10 * min_eig * np.eye(self.num_assets)
+        if min_eig < 1e-6:
+            cov_matrix += (1e-6 - min_eig) * np.eye(self.num_assets)
+
+        if self._cov_param is None or self._x is None or self._problem is None:
+            self._setup_cvxpy_problem()
 
         self._cov_param.value = cov_matrix
 
@@ -74,9 +77,13 @@ class RiskParityPortfolio(BaseStrategy):
         if self._x.value is None:
             return np.ones(self.num_assets) / self.num_assets
 
-        weights = self._x.value / np.sum(self._x.value)
+        weights = np.maximum(self._x.value, 0.0)
+        sum_weights = np.sum(weights)
 
-        return weights
+        if sum_weights < 1e-8:
+            return np.ones(self.num_assets) / self.num_assets
+
+        return weights / sum_weights
 
     def _setup_cvxpy_problem(self) -> None:
         N = self.num_assets
