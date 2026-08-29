@@ -1,0 +1,184 @@
+{
+    "models_tested": [
+        "NCO_kmeans_EW_EW",
+        "NCO_hierarchical_EW_EW",
+        "NCO_spectral_EW_EW",
+        "NCO_kmeans_EW_IVP",
+        "NCO_hierarchical_EW_IVP",
+        "NCO_spectral_EW_IVP",
+        "NCO_kmeans_EW_MVO_max_sharpe_historical_cov_historical_ret",
+        "NCO_hierarchical_EW_MVO_max_sharpe_historical_cov_historical_ret",
+        "NCO_spectral_EW_MVO_max_sharpe_historical_cov_historical_ret",
+        "NCO_kmeans_EW_MVO_max_sharpe_Carhart_4_cov_historical_ret",
+        "NCO_hierarchical_EW_MVO_max_sharpe_Carhart_4_cov_historical_ret",
+        "NCO_spectral_EW_MVO_max_sharpe_Carhart_4_cov_historical_ret",
+        "NCO_kmeans_EW_MVO_max_sharpe_FF_5_cov_historical_ret",
+        "NCO_hierarchical_EW_MVO_max_sharpe_FF_5_cov_historical_ret",
+        "NCO_spectral_EW_MVO_max_sharpe_FF_5_cov_historical_ret",
+        "NCO_kmeans_EW_HRP_historical_cov",
+        "NCO_hierarchical_EW_HRP_historical_cov",
+        "NCO_spectral_EW_HRP_historical_cov",
+        "NCO_kmeans_EW_HRP_ledoit_wolf_cov",
+        "NCO_hierarchical_EW_HRP_ledoit_wolf_cov",
+        "NCO_spectral_EW_HRP_ledoit_wolf_cov",
+        "NCO_kmeans_EW_RP_ledoit_wolf_cov",
+        "NCO_hierarchical_EW_RP_ledoit_wolf_cov",
+        "NCO_spectral_EW_RP_ledoit_wolf_cov",
+        "NCO_kmeans_EW_RP_FF_3_cov",
+        "NCO_hierarchical_EW_RP_FF_3_cov",
+        "NCO_spectral_EW_RP_FF_3_cov",
+        "NCO_kmeans_EW_rHMM_MVO_ewma_MVO_cov_historical_MVO_ret_ledoit_wolf_HRP_cov",
+        "NCO_hierarchical_EW_rHMM_MVO_ewma_MVO_cov_historical_MVO_ret_ledoit_wolf_HRP_cov",
+        "NCO_spectral_EW_rHMM_MVO_ewma_MVO_cov_historical_MVO_ret_ledoit_wolf_HRP_cov",
+        "NCO_kmeans_EW_rHMM_MVO_historical_MVO_cov_historical_MVO_ret_historical_HRP_cov",
+        "NCO_hierarchical_EW_rHMM_MVO_historical_MVO_cov_historical_MVO_ret_historical_HRP_cov",
+        "NCO_spectral_EW_rHMM_MVO_historical_MVO_cov_historical_MVO_ret_historical_HRP_cov",
+        "NCO_kmeans_EW_rHMM_MVO_FF_3_MVO_cov_historical_MVO_ret_ledoit_wolf_HRP_cov",
+        "NCO_hierarchical_EW_rHMM_MVO_FF_3_MVO_cov_historical_MVO_ret_ledoit_wolf_HRP_cov",
+        "NCO_spectral_EW_rHMM_MVO_FF_3_MVO_cov_historical_MVO_ret_ledoit_wolf_HRP_cov"
+    ],
+    "simulators_tested": [
+        "static_skewed_t"
+    ],
+    "config": {
+        "tickers": [
+            "AAPL",
+            "MSFT",
+            "JPM",
+            "AMZN",
+            "NVDA",
+            "GOOGL",
+            "NFLX",
+            "BRK-B",
+            "WMT",
+            "BAC",
+            "PG",
+            "JNJ",
+            "NEE",
+            "XOM",
+            "FCX",
+            "NEM",
+            "SPG",
+            "O",
+            "PLUG",
+            "RIG",
+            "URBN",
+            "MSTR",
+            "ASML",
+            "TM",
+            "NVO"
+        ],
+        "index_tickers": [
+            "^GSPC",
+            "SPY",
+            "^VIX"
+        ],
+        "start_date": "2005-01-01",
+        "end_date": "2025-12-31",
+        "asset_bounds": {
+            "default_min": 0.0,
+            "default_max": 1.0,
+            "custom_max": {
+                "0.15": [
+                    "AAPL",
+                    "MSFT",
+                    "GOOGL",
+                    "AMZN",
+                    "JPM",
+                    "BRK-B",
+                    "JNJ",
+                    "PG",
+                    "WMT"
+                ],
+                "0.08": [
+                    "ASML",
+                    "BAC",
+                    "NEE",
+                    "NFLX",
+                    "NVDA",
+                    "NVO",
+                    "TM",
+                    "XOM"
+                ],
+                "0.05": [
+                    "MSTR",
+                    "PLUG",
+                    "RIG",
+                    "URBN"
+                ],
+                "0.03": [
+                    "FCX",
+                    "NEM",
+                    "O",
+                    "SPG"
+                ]
+            }
+        },
+        "sector_constraints": {
+            "tech_growth": {
+                "tickers": [
+                    "AAPL",
+                    "MSFT",
+                    "GOOGL",
+                    "AMZN",
+                    "NVDA",
+                    "NFLX",
+                    "ASML"
+                ],
+                "max_weight": 0.4
+            },
+            "defensive": {
+                "tickers": [
+                    "JNJ",
+                    "PG",
+                    "WMT",
+                    "NEE"
+                ],
+                "min_weight": 0.05,
+                "max_weight": 0.5
+            },
+            "commodity": {
+                "tickers": [
+                    "FCX",
+                    "NEM",
+                    "XOM"
+                ],
+                "max_weight": 0.2
+            }
+        },
+        "dynamic_constraints": {
+            "turnover_limit": {
+                "max": 0.5
+            },
+            "rebalance_threshold": {
+                "min": 0.005
+            }
+        },
+        "monte_carlo": {
+            "num_simulations": 1000,
+            "num_precomputed_paths": 100,
+            "chunk_size": 25
+        },
+        "backtest": {
+            "initial_capital": 1000000,
+            "rebalance_period": 20,
+            "lookback_window": 252
+        },
+        "frictions": {
+            "slippage": 0.001,
+            "commission_rate": 0.0002
+        },
+        "hmm_model": {
+            "n_components": 2,
+            "n_iter": 1000,
+            "df_bounds": [
+                2.01,
+                50
+            ],
+            "vol_window": 21,
+            "corr_window": 21,
+            "draw_window": 252,
+            "regime_threshold": 0.6
+        }
+    }
+}
