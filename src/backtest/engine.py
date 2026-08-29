@@ -4,6 +4,8 @@ import pandas as pd
 import scipy.sparse as sp
 import osqp
 from joblib import Parallel, delayed
+from joblib.externals.loky import get_reusable_executor
+import multiprocessing
 import inspect
 import typing
 from src.data_generation.base_monte_carlo import BaseMonteCarloSimulator
@@ -50,6 +52,16 @@ class BaseStrategy(ABC):
         self.slippage_rate = slippage_rate
 
         self.num_assets = self.prices.shape[1]
+        self.num_periods = self.prices.shape[0]
+
+        self.portfolio_value = np.zeros(self.num_periods)
+        self.asset_shares = np.zeros((self.num_periods, self.num_assets))
+        self.asset_values = np.zeros((self.num_periods, self.num_assets))
+        self.cash = np.zeros(self.num_periods)
+        self.costs = np.zeros(self.num_periods)
+        self.weights = np.zeros((self.num_periods, self.num_assets))
+
+        self.is_backtest_run = False
 
         if allocation_bounds is not None:
             self.allocation_bounds = allocation_bounds
@@ -128,14 +140,7 @@ class BaseStrategy(ABC):
     def run_backtest(self) -> None:
         """Runs the backtest for the strategy, populating the portfolio value and related attributes over time."""
 
-        self.num_periods, self.num_assets = self.prices.shape
-        self.portfolio_value = np.zeros(self.num_periods)
-        self.asset_shares = np.zeros((self.num_periods, self.num_assets))
-        self.asset_values = np.zeros((self.num_periods, self.num_assets))
-        self.cash = np.zeros(self.num_periods)
-        self.costs = np.zeros(self.num_periods)
-
-        self.weights = np.zeros((self.num_periods, self.num_assets))
+        self.is_backtest_run = False
 
         self.cash[0] = self.initial_capital
 
@@ -162,6 +167,8 @@ class BaseStrategy(ABC):
                     out=np.zeros_like(self.asset_values[period]),
                     where=self.portfolio_value[period] != 0,
                 )
+
+        self.is_backtest_run = True
 
     def _initialize_portfolio(self) -> None:
         """Initializes the portfolio with an equal-weighted allocation at the first period."""
@@ -325,25 +332,36 @@ class BaseStrategy(ABC):
         )
         dates = list(map(str, self.dates)) if hasattr(self, "dates") else None
 
-        results = Parallel(n_jobs=workers)(
-            delayed(_mc_batch_worker)(
-                simulator if precomputed_prices is None else None,
-                (
-                    precomputed_prices[batch_start:batch_end]
-                    if precomputed_prices is not None
-                    else None
-                ),
-                cls,
-                init_kwargs,
-                assets_columns,
-                dates,
-                self.prices[0],
-                self.num_periods + 1,
-                b_size,
-                return_metrics,
+        pool_workers = multiprocessing.cpu_count() if workers == -1 else workers
+
+        tasks_per_chunk = pool_workers 
+        results = []
+        batch_list = list(zip(batch_indices, batches))
+        
+        for i in range(0, len(batch_list), tasks_per_chunk):
+            chunk = batch_list[i:i + tasks_per_chunk]
+            chunk_results = Parallel(n_jobs=workers)(
+                delayed(_mc_batch_worker)(
+                    simulator if precomputed_prices is None else None,
+                    (
+                        precomputed_prices[batch_start:batch_end]
+                        if precomputed_prices is not None
+                        else None
+                    ),
+                    cls,
+                    init_kwargs,
+                    assets_columns,
+                    dates,
+                    self.prices[0],
+                    self.num_periods + 1,
+                    b_size,
+                    return_metrics,
+                )
+                for (batch_start, batch_end), b_size in chunk
             )
-            for (batch_start, batch_end), b_size in zip(batch_indices, batches)
-        )
+            results.extend(chunk_results)
+            
+            get_reusable_executor().shutdown(wait=True)
 
         if return_metrics:
             combined_metrics = {}
@@ -488,7 +506,7 @@ class BaseStrategy(ABC):
     def calculate_performance_metrics(self) -> dict:
         """Calculates performance metrics based on the portfolio value over time."""
 
-        if not hasattr(self, "portfolio_value"):
+        if not getattr(self, "is_backtest_run", False):
             raise ValueError(
                 "Backtest must be run before calculating performance metrics."
             )
