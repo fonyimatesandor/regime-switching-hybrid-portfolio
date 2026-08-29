@@ -1,2 +1,38 @@
 # regime-switching-hybrid-portfolio
 
+## Executive Summary
+
+This project implements an easily extendble and customizable portfolio backtesting framework with and an emphasis on creating models that perform well in different market environments. Thus we developed a model that uses HMM regime detection to decide between using classical Mean-Variance analysis and Hierarchical Risk Parity based on the current state.
+
+Traditional portfolio optimization, particularly Mean-Variance analysis, assumes that expected returns and asset covariances remain constant over time, which is deeply untrue for financial markets. Additionally MVO requires the inversion of the covariance matrix that can be problematic during times when assets become highly correlated (for example in times of market crashes).  
+
+To solve this problem we developed a model that switches between MVO and HRP depending on the current market setting to both capture gains and reduce drawdowns. Rather than relying on a single historical backtest, the models are additionally evaluated using Monte Carlo methods as well. The results provide an observable improvement over the classical models at the cost of little additional compute.
+
+## Architecture Breakdown
+
+The developped solution performs the end to end simulation of different portfolios. The most important parts are the following:
+
+**1. Backtesting engine** [src/backtest/engine.py](src/backtest/engine.py): A vectorized OSQP solver enforcing real-world market frictions defined in the config file (e.g., 2bps commissions, 10bps slippage, and maximum turnover constraints).
+
+**2. Monte Carlo Simulation** [src/data_generation](src/data_generation/): Different types of Monte Carlo data simulator used to generate additional scenarios.
+
+**3. Classical models** [src/models](src/models/): Classical portfolio models (Mean-Variance analysis, Hierarchical Risk Parity, Risk Parity, Inverse Volatility Weighting, Equal Weighting) as comparison targets.
+
+**4. Regime aware model routing** [src/models/rHMM_MVO_HRP.py](src/models/rHMM_MVO_HRP.py): A probabilistic modell that classifies the state into different regimes and switches between MVO and HRP portfolio allocation strategy dynamically.
+
+## Quick start
+
+To verify the results after cloning the repository run [quick_start.py](quick_start.py), and the notebooks in the [notebooks folder](notebooks). Be aware that depending on your machine and the [config settings](config.yaml) the simulation could take a very long time.
+
+## Final results
+
+The below table contains the final evaluation metrics on out of sample data (2021-2025) of the different model for both historical evaluation end Monte Carlo backtests. Based on conducted analysis we used the Skewed-t distribution with a static covariance strucutre, since that provided the closes distribution approximation. Detailed analysis and discussion of the results with additional metrics and visualizations can be found in the notebooks in the [notebooks folder](notebooks).
+
+|                                                                            Model                                                                           | Annualized Return | Mean Annualized Return on MC | Annualized Volatility | Mean Annualized Volatility on MC | Sharpe Ratio | Mean Sharpe Ratio on MC | Max Drawdown | Mean Max Drawdown on MC |
+|:----------------------------------------------------------------------------------------------------------------------------------------------------------:|:-----------------:|:----------------------------:|:---------------------:|:--------------------------------:|:------------:|:-----------------------:|:------------:|:-----------------------:|
+|                                                                        Equal Weights                                                                       |       0.2218      |            0.2022            |         0.2048        |              0.2190              |    1.0834    |          0.9206         |    0.2783    |          0.2880         |
+|                                                                 Inverse Volatility Weights                                                                 |       0.2013      |            0.1822            |         0.1552        |              0.1853              |    1.2977    |          0.9839         |    0.2291    |          0.2386         |
+|                               Mean-Variance Weights  (Fama-French 5 Factor Covariance estimator, Historical Return estimator)                              |       0.2143      |            0.2222            |         0.1892        |              0.2078              |    1.1331    |          1.0688         |    0.2257    |          0.2600         |
+|                                            Hierarchical Risk Parity Weights  (Ledoit-Wolf Covariance estimator)                                            |       0.1928      |            0.1808            |         0.1554        |              0.1882              |    1.2408    |          0.9614         |    0.2309    |          0.2482         |
+|                                              Risk Parity Weights  (Fama-French 3 Factor Covariance estimator)                                              |       0.2077      |            0.1922            |         0.1562        |              0.1921              |    1.3300    |          0.9992         |    0.2327    |          0.2498         |
+| **Regime aware MVO - HRP Weights  (Fama-French 3 Factor MVO Covariance estimator, Historical MVO Return estimator, Ledoit-Wolf HRP Covariance estimator)** |     **0.2198**    |          **0.2179**          |       **0.1676**      |            **0.2047**            |  **1.3118**  |        **1.0645**       |  **0.2259**  |        **0.2589**       |
