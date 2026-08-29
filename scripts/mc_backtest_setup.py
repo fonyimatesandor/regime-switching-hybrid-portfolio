@@ -27,6 +27,7 @@ from src.models.MVO import MeanVariancePortfolio
 from src.models.HRP import HierarchicalRiskParityPortfolio
 from src.models.RP import RiskParityPortfolio
 from src.models.rHMM_MVO_HRP import rHMM_MVO_HRP
+from src.models.HERC import HierarchicalEqualRiskContributionPortfolio
 
 from src.utils.config_loader import load_config, build_bounds_and_constraints
 
@@ -514,3 +515,30 @@ choosen_classical_models_oos.append(
         },
     }
 )
+
+
+HERC_models = []
+
+for cov_name, cov_estimator in covariance_estimators.items():
+    model_name = f"HERC_{cov_name}_cov"
+    HERCModel_kwargs = {
+        "initial_capital": config["backtest"]["initial_capital"],
+        "rebalance_frequency": config["backtest"]["rebalance_period"],
+        "integer_sizing": True,
+        "use_costs": True,
+        "commission_rate": config["frictions"]["commission_rate"],
+        "slippage_rate": config["frictions"]["slippage"],
+        "allocation_bounds": bounds,
+        "static_constraints": constraints,
+        "dynamic_constraints": dynamic_constraints,
+        "lookback_period": config["backtest"]["lookback_window"],
+        "covariance_estimator": cov_estimator,
+    }
+    HERC_models.append(
+        {
+            "name": model_name,
+            "class": HierarchicalEqualRiskContributionPortfolio,
+            "kwargs": HERCModel_kwargs,
+        }
+    )
+
