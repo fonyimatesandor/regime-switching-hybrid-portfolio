@@ -883,3 +883,71 @@ for cov_name, cov_estimator in covariance_estimators.items():
             }
         )
 
+choosen_HERC_models_oos = []
+
+for cov_name, cov_estimator in covariance_estimators_oos.items():
+    model_name = f"HERC_{cov_name}_cov"
+
+    if model_name in ["HERC_Carhart_4_cov", "HERC_ledoit_wolf_cov"]:
+
+        HERCModel_kwargs = {
+            "initial_capital": config["backtest"]["initial_capital"],
+            "rebalance_frequency": config["backtest"]["rebalance_period"],
+            "integer_sizing": True,
+            "use_costs": True,
+            "commission_rate": config["frictions"]["commission_rate"],
+            "slippage_rate": config["frictions"]["slippage"],
+            "allocation_bounds": bounds,
+            "static_constraints": constraints,
+            "dynamic_constraints": dynamic_constraints,
+            "lookback_period": config["backtest"]["lookback_window"],
+            "covariance_estimator": cov_estimator,
+        }
+        choosen_HERC_models_oos.append(
+            {
+                "name": model_name,
+                "class": HierarchicalEqualRiskContributionPortfolio,
+                "kwargs": HERCModel_kwargs,
+            }
+        )
+
+
+choosen_NCO_models_oos = []
+
+for model_1 in choosen_classical_models_oos:
+    for model_2 in choosen_classical_models_oos:
+        for clustering_method in ["kmeans", "hierarchical", "spectral"]:
+            name = f"NCO_{clustering_method}_{model_1["name"]}_{model_2["name"]}"
+
+            if name in [
+                "NCO_kmeans_MVO_max_sharpe_FF_5_cov_historical_ret_rHMM_MVO_FF_3_MVO_cov_historical_MVO_ret_ledoit_wolf_HRP_cov",
+                "NCO_kmeans_rHMM_MVO_ewma_MVO_cov_historical_MVO_ret_ledoit_wolf_HRP_cov_HRP_ledoit_wolf_cov",
+                "NCO_kmeans_MVO_max_sharpe_Carhart_4_cov_historical_ret_MVO_max_sharpe_historical_cov_historical_ret",
+                "NCO_kmeans_MVO_max_sharpe_historical_cov_historical_ret_HRP_ledoit_wolf_cov",
+                "NCO_kmeans_RP_FF_3_cov_HRP_ledoit_wolf_cov",
+                "NCO_spectral_HRP_ledoit_wolf_cov_MVO_max_sharpe_historical_cov_historical_ret",
+            ]:
+
+                NCOModel_kwarg = {
+                    "initial_capital": config["backtest"]["initial_capital"],
+                    "rebalance_frequency": config["backtest"]["rebalance_period"],
+                    "integer_sizing": True,
+                    "use_costs": True,
+                    "commission_rate": config["frictions"]["commission_rate"],
+                    "slippage_rate": config["frictions"]["slippage"],
+                    "allocation_bounds": bounds,
+                    "static_constraints": constraints,
+                    "dynamic_constraints": dynamic_constraints,
+                    "lookback_period": config["backtest"]["lookback_window"],
+                    "clustering_method": clustering_method,
+                    "inner_optimizer": model_1,
+                    "outer_optimizer": model_2,
+                }
+
+                choosen_NCO_models_oos.append(
+                    {
+                        "name": name,
+                        "class": NestedClusteredOptimizationPortfolio,
+                        "kwargs": NCOModel_kwarg,
+                    }
+                )
